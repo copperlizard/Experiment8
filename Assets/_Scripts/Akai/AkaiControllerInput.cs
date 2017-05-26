@@ -44,9 +44,9 @@ public class AkaiControllerInput : MonoBehaviour
         m_move.x = Input.GetAxis("Xaxis");
         m_move.y = -Input.GetAxis("Yaxis");
 
-        Debug.Log("Input.GetAxis(Yaxis) == " + Input.GetAxis("Yaxis").ToString());
+        //Debug.Log("Input.GetAxis(Yaxis) == " + Input.GetAxis("Yaxis").ToString());
 
-        Debug.Log("m_move == " + m_move.ToString());
+        //Debug.Log("m_move == " + m_move.ToString());
 
         if (!m_fastCheck && Input.GetButton("button0"))
         {

@@ -122,6 +122,8 @@
     <Compile Include="Assets\Resources\Standard Assets\Effects\ImageEffects\Scripts\Twirl.cs" />
     <Compile Include="Assets\Resources\Standard Assets\Effects\ImageEffects\Scripts\VignetteAndChromaticAberration.cs" />
     <Compile Include="Assets\Resources\Standard Assets\Effects\ImageEffects\Scripts\Vortex.cs" />
+    <Compile Include="Assets\_Scripts\Akai\AkaiCameraRigController.cs" />
+    <Compile Include="Assets\_Scripts\Akai\AkaiCameraRigControllerInput.cs" />
     <Compile Include="Assets\_Scripts\Akai\AkaiController.cs" />
     <Compile Include="Assets\_Scripts\Akai\AkaiControllerInput.cs" />
   </ItemGroup>
