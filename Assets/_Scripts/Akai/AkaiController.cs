@@ -9,6 +9,9 @@ public class AkaiController : MonoBehaviour
     [SerializeField]
     float m_StationaryTurnSpeed = 180.0f, m_MovingTurnSpeed = 360.0f, m_RunCycleLegOffset = 0.2f; //specific to the character
 
+    private AkaiCameraRigController m_cameraRig;
+    private Transform m_cameraBoom;
+
     private Animator m_animator;
 
     private Rigidbody m_rigidBody;
@@ -35,12 +38,35 @@ public class AkaiController : MonoBehaviour
         {
             Debug.Log("m_rigidBody not found!");
         }
+        else
+        {
+            m_rigidBody.freezeRotation = true;
+        }
+
+        m_cameraRig = GetComponentInChildren<AkaiCameraRigController>();
+        if (m_cameraRig == null)
+        {
+            Debug.Log("m_cameraRig not found!");
+        }
+        else
+        {
+            m_cameraBoom = m_cameraRig.GetBoom();
+            if (m_cameraBoom == null)
+            {
+                Debug.Log("m_cameraBoom not found!");
+            }
+        }
     }
 
     // Update is called once per frame
-    void Update()
-    {
+    void Update ()
+    {        
         UpdateAnimator();
+    }
+
+    private void FixedUpdate ()
+    {
+        GroundCheck();
     }
 
     private void UpdateAnimator()
@@ -51,9 +77,7 @@ public class AkaiController : MonoBehaviour
 
         float runCycle = Mathf.Repeat(m_animator.GetCurrentAnimatorStateInfo(0).normalizedTime + m_RunCycleLegOffset, 1);
         float jumpLeg = (runCycle < 0.5f ? 1 : -1) * m_forward;
-
         m_animator.SetFloat("JumpLeg", jumpLeg);
-
     }
 
     private void OnDrawGizmos()
@@ -73,9 +97,15 @@ public class AkaiController : MonoBehaviour
         }
 
         m_rigidBody.velocity = v;
-
-        //transform.Rotate(m_animator.deltaRotation.eulerAngles);
     }
+
+    /*private void OnCollisionEnter(Collision collision)
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
+        {
+            transform.position = transform.position + collision.contacts[0].normal * 0.1f;
+        }
+    }*/
 
     #region MovementFunctions
 
@@ -111,18 +141,27 @@ public class AkaiController : MonoBehaviour
         m_rigidBody.useGravity = true;
     }
 
-    public void Move(Vector2 move, bool fast)
+    public void Move (Vector2 move, bool fast)
     {
-        m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
+        //Rotate move relative to camera rig
+        Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
+
+        Vector3 camForward = Vector3.ProjectOnPlane(m_cameraBoom.transform.forward, Vector3.up).normalized;
+        Quaternion rot = Quaternion.FromToRotation(transform.forward, camForward);
+        move3d = rot * move3d;
+                
+        move.x = move3d.x;
+        move.y = move3d.z;
+
+        m_move = Vector2.Lerp(m_move, move, 8.0f * Time.deltaTime);        
 
         m_forward = m_move.y;
         m_turn = m_move.x;
 
-        ApplyRotation();
-        GroundCheck();
+        ApplyRotation();        
     }
 
-    public void Jump()
+    public void Jump ()
     {
         Debug.Log("jump!");
     }
@@ -130,9 +169,14 @@ public class AkaiController : MonoBehaviour
 
     #region SetGetStatusFunctions
 
-    public bool IsGrounded()
+    public bool IsGrounded ()
     {
         return m_grounded;
+    }
+
+    public RaycastHit GroundAt ()
+    {
+        return m_groundAt;
     }
 
     #endregion

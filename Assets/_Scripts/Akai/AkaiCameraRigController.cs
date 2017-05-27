@@ -13,6 +13,8 @@ public class AkaiCameraRigController : MonoBehaviour
 
     private Transform m_cameraBoom;
 
+    private Vector3 m_groundOffset = Vector3.zero;
+
     private Vector2 m_move = Vector2.zero;
 
     private bool m_autoRotate = false, m_waitForInputDelay = false;
@@ -42,32 +44,24 @@ public class AkaiCameraRigController : MonoBehaviour
             }
         }
 
+        m_groundOffset = m_cameraBoom.transform.position - m_akaiController.transform.position;
+
         m_cameraBoom.transform.parent = null; //free boom from local transforms
 	}
 	
 	// Update is called once per frame
-	void Update ()
+	void FixedUpdate ()
     {
-        float ydif = m_cameraBoom.transform.position.y - transform.position.y;
-        if (ydif < 0.0f)
-        {
-            ydif = -ydif;
-        }
-
         if (m_akaiController.IsGrounded())
-        {
-            if (ydif > 0.10f)
-            {
-                m_cameraBoom.transform.position = new Vector3(transform.position.x, Mathf.Lerp(m_cameraBoom.transform.position.y, transform.position.y, ydif / 0.5f), transform.position.z);
-            }
-            else
-            {
-                m_cameraBoom.transform.position = new Vector3(transform.position.x, m_cameraBoom.position.y, transform.position.z);
-            }
+        {            
+            m_cameraBoom.transform.position = Vector3.Lerp(m_cameraBoom.transform.position, m_akaiController.GroundAt().point + m_groundOffset, 0.65f);            
+            m_camera.transform.rotation = Quaternion.LookRotation((m_cameraBoom.transform.position - m_camera.transform.position).normalized);
+            //m_cameraBoom.transform.position = m_akaiController.GroundAt().point + m_groundOffset;            
         }
         else
         {
             m_cameraBoom.transform.position = transform.position;
+            m_camera.transform.rotation = Quaternion.LookRotation((transform.position - m_camera.transform.position).normalized);
         }        
 
         if (m_move.magnitude <= 0.001f && !m_waitForInputDelay)
@@ -82,6 +76,11 @@ public class AkaiCameraRigController : MonoBehaviour
         if (m_autoRotate)
         {
             m_cameraBoom.transform.rotation = Quaternion.RotateTowards(m_cameraBoom.transform.rotation, transform.rotation, 1.25f);
+
+            if (Vector3.Dot(m_cameraBoom.transform.forward, transform.forward) > 0.9999f)
+            {
+                m_autoRotate = false;
+            }
         }
     }
 
@@ -98,7 +97,10 @@ public class AkaiCameraRigController : MonoBehaviour
 
         if (m_move.magnitude <= 0.001f)
         {
-            m_autoRotate = true;
+            if (Vector3.Dot(m_cameraBoom.transform.forward, transform.forward) < 0.9999f)
+            {
+                m_autoRotate = true;
+            }
         }
 
         yield return null;
@@ -108,5 +110,10 @@ public class AkaiCameraRigController : MonoBehaviour
     public void PanTilt (Vector2 move)
     {
         m_move = move;
+    }
+
+    public Transform GetBoom ()
+    {
+        return m_cameraBoom;
     }
 }
