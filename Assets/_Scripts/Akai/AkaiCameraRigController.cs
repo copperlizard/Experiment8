@@ -5,7 +5,7 @@ using UnityEngine;
 public class AkaiCameraRigController : MonoBehaviour
 {
     [SerializeField]
-    private float m_autoRotateInputDelay = 2.0f;
+    private float m_autoRotateInputDelay = 2.0f, m_panSpeed = 5.0f, m_maxTiltAngle = 60.0f;
 
     private AkaiController m_akaiController;
 
@@ -55,13 +55,13 @@ public class AkaiCameraRigController : MonoBehaviour
         if (m_akaiController.IsGrounded())
         {            
             m_cameraBoom.transform.position = Vector3.Lerp(m_cameraBoom.transform.position, m_akaiController.GroundAt().point + m_groundOffset, 0.65f);            
-            m_camera.transform.rotation = Quaternion.LookRotation((m_cameraBoom.transform.position - m_camera.transform.position).normalized);
+            //m_camera.transform.rotation = Quaternion.LookRotation((m_cameraBoom.transform.position - m_camera.transform.position).normalized);
             //m_cameraBoom.transform.position = m_akaiController.GroundAt().point + m_groundOffset;            
         }
         else
         {
             m_cameraBoom.transform.position = transform.position;
-            m_camera.transform.rotation = Quaternion.LookRotation((transform.position - m_camera.transform.position).normalized);
+            //m_camera.transform.rotation = Quaternion.LookRotation((transform.position - m_camera.transform.position).normalized);
         }        
 
         if (m_move.magnitude <= 0.001f && !m_waitForInputDelay)
@@ -71,16 +71,19 @@ public class AkaiCameraRigController : MonoBehaviour
         else if (m_move.magnitude > 0.001f)
         {
             m_autoRotate = false;
+
+            m_cameraBoom.transform.rotation *= Quaternion.Euler(0.0f, m_panSpeed * m_move.x, 0.0f); // * Quaternion.Euler(m_tiltSpeed * m_move.y, 0.0f, 0.0f)
+            m_cameraBoom.transform.rotation = Quaternion.Euler(m_maxTiltAngle * m_move.y, m_cameraBoom.transform.rotation.eulerAngles.y, 0.0f);
         }
 
         if (m_autoRotate)
         {
             m_cameraBoom.transform.rotation = Quaternion.RotateTowards(m_cameraBoom.transform.rotation, transform.rotation, 1.25f);
 
-            if (Vector3.Dot(m_cameraBoom.transform.forward, transform.forward) > 0.9999f)
+            /*if (Vector3.Dot(m_cameraBoom.transform.forward, transform.forward) > 0.9999f)
             {
                 m_autoRotate = false;
-            }
+            }*/
         }
     }
 
@@ -109,7 +112,10 @@ public class AkaiCameraRigController : MonoBehaviour
 
     public void PanTilt (Vector2 move)
     {
-        m_move = move;
+        m_move.x = move.x;
+        m_move.y = Mathf.Lerp(m_move.y, move.y, 3.0f * Time.deltaTime);
+
+        //m_move = move;
     }
 
     public Transform GetBoom ()

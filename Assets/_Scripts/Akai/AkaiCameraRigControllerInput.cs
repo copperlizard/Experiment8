@@ -23,6 +23,8 @@ public class AkaiCameraRigControllerInput : MonoBehaviour
 	void Update ()
     {
         GetInput();
+
+        m_rigController.PanTilt(m_move);
     }
 
     private void GetInput()
