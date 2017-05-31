@@ -7,10 +7,11 @@ using UnityEngine;
 public class AkaiController : MonoBehaviour
 {
     [SerializeField]
-    float m_StationaryTurnSpeed = 180.0f, m_MovingTurnSpeed = 360.0f, m_RunCycleLegOffset = 0.2f; //specific to the character
+    float m_StationaryTurnSpeed = 180.0f, m_MovingTurnSpeed = 360.0f, m_RunCycleLegOffset = 0.2f; 
 
     private AkaiCameraRigController m_cameraRig;
     private Transform m_cameraBoom;
+    private Camera m_camera;
 
     private Animator m_animator;
 
@@ -22,9 +23,11 @@ public class AkaiController : MonoBehaviour
 
     private Vector2 m_move = Vector2.zero;
 
-    private float m_forward, m_turn;
+    private float m_forward, m_turn, m_lookWeight = 1.0f;
 
-    private bool m_grounded = true, m_quickTurning = false;
+    private bool m_grounded = true, m_quickTurning = false, m_headLook = true;
+
+    #region UnityEventFuntions
 
     // Use this for initialization
     void Start()
@@ -57,6 +60,14 @@ public class AkaiController : MonoBehaviour
             {
                 Debug.Log("m_cameraBoom not found!");
             }
+            else
+            {
+                m_camera = m_cameraBoom.GetComponentInChildren<Camera>();
+                if (m_camera == null)
+                {
+                    Debug.Log("m_camera not found!");
+                }
+            }
         }
     }
 
@@ -76,18 +87,10 @@ public class AkaiController : MonoBehaviour
         //Debug.Log("m_forward == " + m_forward.ToString());
         m_animator.SetFloat("Forward", m_forward);
         m_animator.SetFloat("Turn", m_turn);
-
-        m_animator.SetFloat("Speed", m_rigidBody.velocity.magnitude / 5.0f);
-
+        
         float runCycle = Mathf.Repeat(m_animator.GetCurrentAnimatorStateInfo(0).normalizedTime + m_RunCycleLegOffset, 1);
         float jumpLeg = (runCycle < 0.5f ? 1 : -1) * m_forward;
         m_animator.SetFloat("JumpLeg", jumpLeg);
-    }
-
-    private void OnDrawGizmos()
-    {
-        Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(m_groundAt.point, 0.05f);
     }
 
     private void OnAnimatorMove()
@@ -105,12 +108,14 @@ public class AkaiController : MonoBehaviour
             v.y = m_rigidBody.velocity.y;
         }
 
-        m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, 8.0f * Time.deltaTime);
+        //m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, 8.0f * Time.deltaTime);        
+    }
 
-        /*if (m_move.y < 0.0)
-        {    
-            transform.rotation *= m_animator.deltaRotation;
-        }*/
+    private void OnAnimatorIK(int layerIndex)
+    {
+        m_lookWeight = (m_headLook) ? Mathf.Lerp(m_lookWeight, 1.0f, 3.0f * Time.deltaTime) : Mathf.Lerp(m_lookWeight, 0.0f, 30.0f * Time.deltaTime);
+        m_animator.SetLookAtWeight(m_lookWeight);
+        m_animator.SetLookAtPosition(m_cameraBoom.transform.position + m_cameraBoom.transform.forward * 10.0f);
     }
 
     /*private void OnCollisionEnter(Collision collision)
@@ -121,6 +126,14 @@ public class AkaiController : MonoBehaviour
         }
     }*/
 
+    private void OnDrawGizmos()
+    {
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(m_groundAt.point, 0.05f);
+    }
+
+    #endregion
+
     #region MovementFunctions
 
     private void ApplyRotation ()
@@ -130,13 +143,10 @@ public class AkaiController : MonoBehaviour
         transform.Rotate(0, m_turn * turnSpeed * Time.deltaTime, 0);
     }
 
-    private void QuickTurn (float foot) //-1.0f == left ; 1.0f == right
+    private void QuickTurn ()
     {
         if (!m_quickTurning)
         {
-            m_quickTurning = true;
-
-            //Debug.DrawLine(transform.position, transform.position + new Vector3(m_move.x, 0.0f, m_move.y), Color.blue, 0.5f);
             Vector3 move3d = new Vector3(m_move.x, 0.0f, m_move.y);
             move3d = transform.TransformDirection(move3d);
             Quaternion tarRot = Quaternion.LookRotation(move3d, Vector3.up);
@@ -147,16 +157,20 @@ public class AkaiController : MonoBehaviour
 
     private IEnumerator QuickTurning (Quaternion startRot, Quaternion tarRot)
     {
+        m_quickTurning = true;
+        m_headLook = false;
+
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
 
-        while (animState.normalizedTime < 1.0f && (animState.IsName("QuickTurnAroundLeftFoot") || animState.IsName("QuickTurnAroundRightFoot")))
+        float ang = Quaternion.Angle(startRot, tarRot);        
+        if (animState.IsName("QuickTurnAroundRightFoot"))
         {
-            //EITHER NEED TO ROTATE WITH ANIMATION OR ANIMATE WITH ROTATION!!!
+            ang = ang - 360.0f;
+        }
 
-            //transform.rotation = Quaternion.Slerp(startRot, tarRot, animState.normalizedTime);
-
-
-
+        while (animState.normalizedTime < 1.0f && (animState.IsName("QuickTurnAroundLeftFoot") || animState.IsName("QuickTurnAroundRightFoot")))
+        {   
+            transform.rotation = startRot * Quaternion.Euler(0.0f, -ang * Mathf.SmoothStep(0.0f, 1.0f, animState.normalizedTime), 0.0f);
 
             animState = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
@@ -165,6 +179,7 @@ public class AkaiController : MonoBehaviour
         transform.rotation = tarRot;
 
         m_quickTurning = false;
+        m_headLook = true;
         yield return null;
     }
 
@@ -199,18 +214,32 @@ public class AkaiController : MonoBehaviour
         {
             move *= 2.0f;
         }
+
+        
         
         //Rotate move relative to camera rig
         Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
 
-        Vector3 camForward = Vector3.ProjectOnPlane(m_cameraBoom.transform.forward, Vector3.up).normalized;
+        Vector3 camForward = Vector3.ProjectOnPlane(m_camera.transform.forward, Vector3.up).normalized;
         Quaternion rot = Quaternion.FromToRotation(transform.forward, camForward);
+        //Quaternion rot = Quaternion.FromToRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized, camForward);
+
+        //Debug.Log("\nmove3d.magnitude before rotation == " + move3d.magnitude.ToString());
+        Debug.Log("\nmove3d before rotation == " + move3d.ToString());
         move3d = rot * move3d;
+        //Debug.Log("move3d.magnitude after rotation == " + move3d.magnitude.ToString());
+        Debug.Log("\nmove3d after rotation == " + move3d.ToString());
 
         move.x = move3d.x;
         move.y = move3d.z;
 
+        /*if (Vector2.Distance(m_move, move) > 0.1f)
+        {
+            m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
+        }*/
         m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
+
+        Debug.Log("m_move == " + m_move.ToString());
 
         m_forward = m_move.y;
         m_turn = m_move.x;
@@ -222,7 +251,7 @@ public class AkaiController : MonoBehaviour
         }
         else if (animState.IsName("QuickTurnAroundLeftFoot") || animState.IsName("QuickTurnAroundRightFoot"))
         {
-            QuickTurn((animState.IsName("QuickTurnAroundLeftFoot"))?-1.0f:1.0f);            
+            QuickTurn();            
         }
     }
 
@@ -230,6 +259,7 @@ public class AkaiController : MonoBehaviour
     {
         Debug.Log("jump!");
     }
+
     #endregion
 
     #region SetGetStatusFunctions
@@ -245,6 +275,4 @@ public class AkaiController : MonoBehaviour
     }
 
     #endregion
-
-
 }
