@@ -23,7 +23,7 @@ public class AkaiController : MonoBehaviour
 
     private Vector2 m_move = Vector2.zero;
 
-    private float m_forward, m_turn, m_lookWeight = 1.0f;
+    private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f;
 
     private bool m_grounded = true, m_quickTurning = false, m_headLook = true;
 
@@ -87,10 +87,14 @@ public class AkaiController : MonoBehaviour
         //Debug.Log("m_forward == " + m_forward.ToString());
         m_animator.SetFloat("Forward", m_forward);
         m_animator.SetFloat("Turn", m_turn);
+        m_animator.SetFloat("ForwardIncline", m_forwardIncline);
         
         float runCycle = Mathf.Repeat(m_animator.GetCurrentAnimatorStateInfo(0).normalizedTime + m_RunCycleLegOffset, 1);
         float jumpLeg = (runCycle < 0.5f ? 1 : -1) * m_forward;
         m_animator.SetFloat("JumpLeg", jumpLeg);
+
+
+        m_animator.SetBool("Grounded", m_grounded);
     }
 
     private void OnAnimatorMove()
@@ -105,10 +109,11 @@ public class AkaiController : MonoBehaviour
         if (!m_grounded)
         {
             // preserve the existing y part of the current velocity.
-            v.y = m_rigidBody.velocity.y;
+            //v.y = m_rigidBody.velocity.y;
+            v = m_rigidBody.velocity;
         }
 
-        //m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, 8.0f * Time.deltaTime);        
+        m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, 8.0f * Time.deltaTime);        
     }
 
     private void OnAnimatorIK(int layerIndex)
@@ -200,6 +205,15 @@ public class AkaiController : MonoBehaviour
                 float setY = Mathf.Lerp(curY, groundY, 10.0f * Time.deltaTime);
                 transform.position = new Vector3(transform.position.x, setY, transform.position.z);
 
+                Vector3 projNorm = Vector3.ProjectOnPlane(m_groundAt.normal, transform.right).normalized;
+
+                Debug.DrawLine(transform.position, transform.position + transform.forward, Color.blue);
+                Debug.DrawLine(transform.position, transform.position + transform.right, Color.green);
+                Debug.DrawLine(transform.position, transform.position + transform.right, Color.red);
+                Debug.DrawLine(transform.position, transform.position + projNorm, Color.yellow);
+
+                m_forwardIncline = Vector3.Dot(projNorm, transform.up);
+
                 return;
             }
         }
@@ -214,32 +228,34 @@ public class AkaiController : MonoBehaviour
         {
             move *= 2.0f;
         }
-
-        
         
         //Rotate move relative to camera rig
         Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
 
-        Vector3 camForward = Vector3.ProjectOnPlane(m_camera.transform.forward, Vector3.up).normalized;
-        Quaternion rot = Quaternion.FromToRotation(transform.forward, camForward);
+        //Vector3 camForward = Vector3.ProjectOnPlane(m_camera.transform.forward, Vector3.up).normalized;
+        //Quaternion rot = Quaternion.FromToRotation(transform.forward, camForward);
         //Quaternion rot = Quaternion.FromToRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized, camForward);
 
+        Quaternion rot = Quaternion.Euler(0.0f, m_camera.transform.rotation.eulerAngles.y - transform.rotation.eulerAngles.y, 0.0f);
+
         //Debug.Log("\nmove3d.magnitude before rotation == " + move3d.magnitude.ToString());
-        Debug.Log("\nmove3d before rotation == " + move3d.ToString());
+        //Debug.Log("\nmove3d before rotation == " + move3d.ToString());
         move3d = rot * move3d;
         //Debug.Log("move3d.magnitude after rotation == " + move3d.magnitude.ToString());
-        Debug.Log("\nmove3d after rotation == " + move3d.ToString());
+        //Debug.Log("\nmove3d after rotation == " + move3d.ToString());
+
+        /*if (move3d.y > 0.0f)
+        {
+            Debug.Log("move3d.y == " + move3d.y.ToString());
+            Time.timeScale = 0.0f;
+        }*/
 
         move.x = move3d.x;
         move.y = move3d.z;
-
-        /*if (Vector2.Distance(m_move, move) > 0.1f)
-        {
-            m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
-        }*/
+      
         m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
 
-        Debug.Log("m_move == " + m_move.ToString());
+        //Debug.Log("m_move == " + m_move.ToString());
 
         m_forward = m_move.y;
         m_turn = m_move.x;

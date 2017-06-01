@@ -33527,6 +33527,11 @@ The Player ID is always 1, because only one Editor can be connected.</param>
         <para>The numeric HTTP response code returned by the server, such as 200, 404 or 500. (Read Only)</para>
       </summary>
     </member>
+    <member name="P:UnityEngine.Networking.UnityWebRequest.timeout">
+      <summary>
+        <para>Sets UnityWebRequest to attempt to abort after the number of seconds in timeout have passed.</para>
+      </summary>
+    </member>
     <member name="P:UnityEngine.Networking.UnityWebRequest.uploadedBytes">
       <summary>
         <para>Returns the number of bytes of body data the system has uploaded to the remote server. (Read Only)</para>
@@ -45850,6 +45855,11 @@ Updating a probe's cubemap is a costly operation. Unity needs to render the enti
         <para>Scalar (R) render texture format, 32 bit floating point.</para>
       </summary>
     </member>
+    <member name="F:UnityEngine.RenderTextureFormat.RG16">
+      <summary>
+        <para>Two channel (RG) render texture format, 8 bits per channel.</para>
+      </summary>
+    </member>
     <member name="F:UnityEngine.RenderTextureFormat.RG32">
       <summary>
         <para>Two color (RG) render texture format, 16 bits per channel, fixed point, unsigned normalized.</para>
@@ -45863,6 +45873,11 @@ Updating a probe's cubemap is a costly operation. Unity needs to render the enti
     <member name="F:UnityEngine.RenderTextureFormat.RGB565">
       <summary>
         <para>Color render texture format.</para>
+      </summary>
+    </member>
+    <member name="F:UnityEngine.RenderTextureFormat.RGBAUShort">
+      <summary>
+        <para>Four channel (RGBA) render texture format, 16 bit unsigned integer per channel.</para>
       </summary>
     </member>
     <member name="F:UnityEngine.RenderTextureFormat.RGFloat">
@@ -45928,7 +45943,7 @@ Updating a probe's cubemap is a costly operation. Unity needs to render the enti
     </member>
     <member name="M:UnityEngine.RequireComponent.#ctor(System.Type,System.Type)">
       <summary>
-        <para>Require a two components.</para>
+        <para>Require two components.</para>
       </summary>
       <param name="requiredComponent"></param>
       <param name="requiredComponent2"></param>
@@ -52254,9 +52269,19 @@ Returns NULL if there is no associated alpha texture for the source sprite. This
         <para>A 16 bit color texture format that only has a red channel.</para>
       </summary>
     </member>
+    <member name="F:UnityEngine.TextureFormat.R8">
+      <summary>
+        <para>Scalar (R) render texture format, 8 bit fixed point.</para>
+      </summary>
+    </member>
     <member name="F:UnityEngine.TextureFormat.RFloat">
       <summary>
         <para>Scalar (R) texture format, 32 bit floating point.</para>
+      </summary>
+    </member>
+    <member name="F:UnityEngine.TextureFormat.RG16">
+      <summary>
+        <para>Two color (RG) texture format, 8-bits per channel.</para>
       </summary>
     </member>
     <member name="F:UnityEngine.TextureFormat.RGB24">
