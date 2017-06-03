@@ -25,7 +25,7 @@ public class AkaiController : MonoBehaviour
 
     private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f;
 
-    private bool m_grounded = true, m_quickTurning = false, m_headLook = true;
+    private bool m_grounded = true, m_jumping = false, m_quickTurning = false, m_headLook = true;
 
     #region UnityEventFuntions
 
@@ -95,6 +95,7 @@ public class AkaiController : MonoBehaviour
 
 
         m_animator.SetBool("Grounded", m_grounded);
+        m_animator.SetBool("Jumping", m_jumping);
     }
 
     private void OnAnimatorMove()
@@ -190,6 +191,11 @@ public class AkaiController : MonoBehaviour
 
     private void GroundCheck ()
     {
+        if (m_jumping)
+        {
+            return;
+        }
+
         Vector3 kneeHeightPos = transform.position + transform.up * 0.5f; //0.5f being ~character_height - capsule_height
 
         if (Physics.Raycast(kneeHeightPos, -transform.up, out m_groundAt, 1.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
@@ -200,19 +206,14 @@ public class AkaiController : MonoBehaviour
             {
                 m_grounded = true;
                 m_rigidBody.useGravity = false;
-
+                
                 float curY = transform.position.y, groundY = m_groundAt.point.y;
                 float setY = Mathf.Lerp(curY, groundY, 10.0f * Time.deltaTime);
                 transform.position = new Vector3(transform.position.x, setY, transform.position.z);
 
                 Vector3 projNorm = Vector3.ProjectOnPlane(m_groundAt.normal, transform.right).normalized;
-
-                Debug.DrawLine(transform.position, transform.position + transform.forward, Color.blue);
-                Debug.DrawLine(transform.position, transform.position + transform.right, Color.green);
-                Debug.DrawLine(transform.position, transform.position + transform.right, Color.red);
-                Debug.DrawLine(transform.position, transform.position + projNorm, Color.yellow);
-
-                m_forwardIncline = Vector3.Dot(projNorm, transform.up);
+                
+                m_forwardIncline = Mathf.Lerp(m_forwardIncline, -Vector3.Dot(projNorm, transform.forward), 5.0f * Time.deltaTime);
 
                 return;
             }
@@ -273,7 +274,37 @@ public class AkaiController : MonoBehaviour
 
     public void Jump ()
     {
+        if (m_jumping)
+        {
+            return;
+        }
+
+        StartCoroutine(Jumping());
+    }
+
+    private IEnumerator Jumping ()
+    {
+        AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
+
         Debug.Log("jump!");
+        m_jumping = true;
+        m_grounded = false;
+        m_rigidBody.useGravity = true;
+
+
+        while (!animState.IsName("Left Leg Jump Blend Tree") && !animState.IsName("Right Leg Jump Blend Tree"))
+        {
+            yield return null;
+        }
+
+        while (animState.IsName("Left Leg Jump Blend Tree") || animState.IsName("Right Leg Jump Blend Tree"))
+        {   
+            yield return null;
+        }
+                
+        m_jumping = false;
+
+        yield return null;
     }
 
     #endregion
