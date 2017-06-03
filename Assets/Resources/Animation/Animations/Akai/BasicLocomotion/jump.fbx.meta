@@ -490,7 +490,7 @@ ModelImporter:
     - serializedVersion: 16
       name: AkaiStandingJumpUpRightLeg
       takeName: mixamo.com
-      firstFrame: 0
+      firstFrame: 8
       lastFrame: 48
       wrapMode: 0
       orientationOffsetY: 0
@@ -650,7 +650,7 @@ ModelImporter:
     - serializedVersion: 16
       name: AkaiStandingJumpUpLeftLeg
       takeName: mixamo.com
-      firstFrame: 0
+      firstFrame: 8
       lastFrame: 48
       wrapMode: 0
       orientationOffsetY: 0

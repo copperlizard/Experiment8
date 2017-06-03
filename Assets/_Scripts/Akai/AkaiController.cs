@@ -107,7 +107,7 @@ public class AkaiController : MonoBehaviour
 
         Vector3 v = m_animator.deltaPosition / Time.deltaTime;
 
-        if (!m_grounded)
+        if (!m_grounded && !m_jumping)
         {
             // preserve the existing y part of the current velocity.
             //v.y = m_rigidBody.velocity.y;
@@ -288,21 +288,26 @@ public class AkaiController : MonoBehaviour
 
         Debug.Log("jump!");
         m_jumping = true;
-        m_grounded = false;
-        m_rigidBody.useGravity = true;
-
-
+        m_grounded = false;        
+        
         while (!animState.IsName("Left Leg Jump Blend Tree") && !animState.IsName("Right Leg Jump Blend Tree"))
         {
+            Debug.Log("1");
+            animState = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
         }
 
-        while (animState.IsName("Left Leg Jump Blend Tree") || animState.IsName("Right Leg Jump Blend Tree"))
-        {   
+        while ((animState.IsName("Left Leg Jump Blend Tree") || animState.IsName("Right Leg Jump Blend Tree")) && animState.normalizedTime < 0.99f)
+        {
+            Debug.Log("2");
+            animState = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
         }
-                
+
+        m_rigidBody.useGravity = true;
         m_jumping = false;
+
+        Debug.Log("done jumping!");
 
         yield return null;
     }
