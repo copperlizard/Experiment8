@@ -84,8 +84,8 @@ public class AkaiController : MonoBehaviour
 
     private void UpdateAnimator()
     {
-        //Debug.Log("m_forward == " + m_forward.ToString());
         m_animator.SetFloat("Forward", m_forward);
+        m_animator.SetFloat("Speed", new Vector3(m_rigidBody.velocity.x, 0.0f, m_rigidBody.velocity.z).magnitude / 5.5f);
         m_animator.SetFloat("Turn", m_turn);
         m_animator.SetFloat("ForwardIncline", m_forwardIncline);
         
@@ -100,14 +100,14 @@ public class AkaiController : MonoBehaviour
 
     private void OnAnimatorMove()
     {
-        if (Time.timeScale <= 0.0f)
+        if (Time.timeScale <= 0.0f && m_jumping)
         {
             return;
         }
 
         Vector3 v = m_animator.deltaPosition / Time.deltaTime;
 
-        if (!m_grounded && !m_jumping)
+        if (!m_grounded)
         {
             // preserve the existing y part of the current velocity.
             //v.y = m_rigidBody.velocity.y;
@@ -232,32 +232,14 @@ public class AkaiController : MonoBehaviour
         
         //Rotate move relative to camera rig
         Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
-
-        //Vector3 camForward = Vector3.ProjectOnPlane(m_camera.transform.forward, Vector3.up).normalized;
-        //Quaternion rot = Quaternion.FromToRotation(transform.forward, camForward);
-        //Quaternion rot = Quaternion.FromToRotation(Vector3.ProjectOnPlane(transform.forward, Vector3.up).normalized, camForward);
-
         Quaternion rot = Quaternion.Euler(0.0f, m_camera.transform.rotation.eulerAngles.y - transform.rotation.eulerAngles.y, 0.0f);
-
-        //Debug.Log("\nmove3d.magnitude before rotation == " + move3d.magnitude.ToString());
-        //Debug.Log("\nmove3d before rotation == " + move3d.ToString());
         move3d = rot * move3d;
-        //Debug.Log("move3d.magnitude after rotation == " + move3d.magnitude.ToString());
-        //Debug.Log("\nmove3d after rotation == " + move3d.ToString());
-
-        /*if (move3d.y > 0.0f)
-        {
-            Debug.Log("move3d.y == " + move3d.y.ToString());
-            Time.timeScale = 0.0f;
-        }*/
-
+        
         move.x = move3d.x;
         move.y = move3d.z;
       
         m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
-
-        //Debug.Log("m_move == " + m_move.ToString());
-
+        
         m_forward = m_move.y;
         m_turn = m_move.x;
         
@@ -274,7 +256,7 @@ public class AkaiController : MonoBehaviour
 
     public void Jump ()
     {
-        if (m_jumping)
+        if (m_jumping || !m_grounded)
         {
             return;
         }
@@ -288,23 +270,31 @@ public class AkaiController : MonoBehaviour
 
         Debug.Log("jump!");
         m_jumping = true;
-        m_grounded = false;        
+        m_grounded = false;
+
+        m_rigidBody.useGravity = true;
+        Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 200.0f);
+        m_rigidBody.AddForce(Vector3.up * 400.0f + push, ForceMode.Impulse);
         
         while (!animState.IsName("Left Leg Jump Blend Tree") && !animState.IsName("Right Leg Jump Blend Tree"))
         {
-            Debug.Log("1");
+            //Debug.Log("1");
             animState = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
         }
 
+        //m_rigidBody.useGravity = true;
+        //Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 1000.0f);
         while ((animState.IsName("Left Leg Jump Blend Tree") || animState.IsName("Right Leg Jump Blend Tree")) && animState.normalizedTime < 0.99f)
         {
-            Debug.Log("2");
+            //Debug.Log("2");
             animState = m_animator.GetCurrentAnimatorStateInfo(0);
+            
+            //m_rigidBody.AddForce(Vector3.up * 2000.0f + push);
             yield return null;
         }
 
-        m_rigidBody.useGravity = true;
+        
         m_jumping = false;
 
         Debug.Log("done jumping!");
