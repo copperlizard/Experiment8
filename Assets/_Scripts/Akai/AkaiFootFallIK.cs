@@ -19,6 +19,8 @@ public class AkaiFootFallIK : MonoBehaviour
 
     private RaycastHit m_leftFootHit, m_rightFootHit;
 
+    private float m_leftFootWeight, m_rightFootWeight;
+
 	// Use this for initialization
 	void Start ()
     {
@@ -76,6 +78,45 @@ public class AkaiFootFallIK : MonoBehaviour
 
     private void OnAnimatorIK(int layerIndex)
     {
+        m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
+        m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
+
+        Vector3 leftStartPos = new Vector3(m_leftFootTransform.position.x, transform.position.y + m_maxFootLift, m_leftFootTransform.position.z);
+        Vector3 rightStartPos = new Vector3(m_rightFootTransform.position.x, transform.position.y + m_maxFootLift, m_rightFootTransform.position.z);
+
+        if (Physics.Raycast(leftStartPos, -transform.up, out m_leftFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        {
+            m_leftFootTarPos = m_leftFootHit.point;
+        }
+        else
+        {
+            m_leftFootTarPos = m_leftFootTransform.position;
+        }
+
+        if (Physics.Raycast(rightStartPos, -transform.up, out m_rightFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        {
+            m_rightFootTarPos = m_rightFootHit.point;
+        }
+        else
+        {
+            m_rightFootTarPos = m_rightFootTransform.position;
+        }
+
         
+        float leftSink = (transform.position.y - m_leftFootTarPos.y); 
+        float rightSink = (transform.position.y - m_rightFootTarPos.y);
+
+        //float sink = Mathf.Abs(m_leftFootTarPos.y - m_rightFootTarPos.y); //No way to weigh feet???
+
+        //Debug.Log("sinksink == " + sink.ToString());
+
+        Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
+
+        float sink = leftSink + rightSink;
+
+        Debug.Log("sink == " + sink.ToString());
+
+        //m_akaiController.SetSink(sink);
+        m_akaiController.SetSink(0.2f);
     }
 }

@@ -23,7 +23,7 @@ public class AkaiController : MonoBehaviour
 
     private Vector2 m_move = Vector2.zero;
 
-    private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f;
+    private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f, m_sink;
 
     private bool m_grounded = true, m_jumping = false, m_quickTurning = false, m_headLook = true;
 
@@ -208,7 +208,7 @@ public class AkaiController : MonoBehaviour
                 m_rigidBody.useGravity = false;
                 
                 float curY = transform.position.y, groundY = m_groundAt.point.y;
-                float setY = Mathf.Lerp(curY, groundY, 10.0f * Time.deltaTime);
+                float setY = Mathf.Lerp(curY, groundY - m_sink, 10.0f * Time.deltaTime);
                 transform.position = new Vector3(transform.position.x, setY, transform.position.z);
 
                 Vector3 projNorm = Vector3.ProjectOnPlane(m_groundAt.normal, transform.right).normalized;
@@ -314,6 +314,12 @@ public class AkaiController : MonoBehaviour
     public RaycastHit GroundAt ()
     {
         return m_groundAt;
+    }
+
+    public void SetSink (float sink)
+    {
+        m_sink = sink;        
+        Debug.Log("sink == " + m_sink.ToString());
     }
 
     #endregion
