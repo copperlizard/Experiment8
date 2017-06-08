@@ -318,8 +318,14 @@ public class AkaiController : MonoBehaviour
 
     public void SetSink (float sink)
     {
-        m_sink = sink;        
-        Debug.Log("sink == " + m_sink.ToString());
+        m_sink = sink;
+
+        //transform.position = new Vector3(transform.position.x, transform.position.y - sink, transform.position.z);        
+    }
+
+    public float GetSink ()
+    {
+        return m_sink;
     }
 
     #endregion

@@ -60,6 +60,30 @@ public class AkaiFootFallIK : MonoBehaviour
 		
 	}
 
+    private void FixedUpdate ()
+    {
+        Vector3 leftStartPos = new Vector3(m_leftFootTransform.position.x, transform.position.y + m_maxFootLift, m_leftFootTransform.position.z);
+        Vector3 rightStartPos = new Vector3(m_rightFootTransform.position.x, transform.position.y + m_maxFootLift, m_rightFootTransform.position.z);
+
+        if (Physics.Raycast(leftStartPos, -transform.up, out m_leftFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        {
+            m_leftFootTarPos = m_leftFootHit.point + transform.up * m_footRadius;
+        }
+        else
+        {
+            m_leftFootTarPos = m_leftFootTransform.position;
+        }
+
+        if (Physics.Raycast(rightStartPos, -transform.up, out m_rightFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        {
+            m_rightFootTarPos = m_rightFootHit.point + transform.up * m_footRadius;
+        }
+        else
+        {
+            m_rightFootTarPos = m_rightFootTransform.position;
+        }
+    }
+
     private void OnDrawGizmos()
     {
         if (!Application.isPlaying)
@@ -78,45 +102,58 @@ public class AkaiFootFallIK : MonoBehaviour
 
     private void OnAnimatorIK(int layerIndex)
     {
+        //TRY USING DIP BELOW TRANSFORM.POSITION.Y INSTEAD OF TOTAL POSSIBLE FOOTFALL!!!
+
+
         m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
         m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
 
-        Vector3 leftStartPos = new Vector3(m_leftFootTransform.position.x, transform.position.y + m_maxFootLift, m_leftFootTransform.position.z);
-        Vector3 rightStartPos = new Vector3(m_rightFootTransform.position.x, transform.position.y + m_maxFootLift, m_rightFootTransform.position.z);
+        m_leftFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_leftFootWeight);
+        m_rightFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_rightFootWeight);
 
-        if (Physics.Raycast(leftStartPos, -transform.up, out m_leftFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
-        {
-            m_leftFootTarPos = m_leftFootHit.point;
-        }
-        else
-        {
-            m_leftFootTarPos = m_leftFootTransform.position;
-        }
+        //Debug.Log("m_leftFootWeight == " + m_leftFootWeight.ToString() + " ; m_rightFootWeight == " + m_rightFootWeight.ToString());
 
-        if (Physics.Raycast(rightStartPos, -transform.up, out m_rightFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
-        {
-            m_rightFootTarPos = m_rightFootHit.point;
-        }
-        else
-        {
-            m_rightFootTarPos = m_rightFootTransform.position;
-        }
+        float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
+        leftSink *= m_leftFootWeight;
+        rightSink *= m_rightFootWeight;
 
+        //Debug.Log("old m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
+        //Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
+
+        m_akaiController.SetSink(((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink());
+
+
+        /*
+        float dif = m_leftFootWeight - m_rightFootWeight;
+
+        if (dif < 0.25f && dif > -0.25f)
+        {
+            float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
+            leftSink *= m_leftFootWeight;
+            rightSink *= m_rightFootWeight;
+
+            //Debug.Log("old m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
+            //Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
+
+            m_akaiController.SetSink(((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink());
+        }
+        else if (dif >= 0.25f)
+        {
+            float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y;
+            leftSink *= m_leftFootWeight;
+            m_akaiController.SetSink(leftSink + m_akaiController.GetSink());            
+        }
+        else if (dif <= -0.25f)
+        {
+            float rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
+            rightSink *= m_rightFootWeight;
+            m_akaiController.SetSink(rightSink + m_akaiController.GetSink());
+        }*/
         
-        float leftSink = (transform.position.y - m_leftFootTarPos.y); 
-        float rightSink = (transform.position.y - m_rightFootTarPos.y);
+        //m_akaiController.SetSink(0.2f);
 
-        //float sink = Mathf.Abs(m_leftFootTarPos.y - m_rightFootTarPos.y); //No way to weigh feet???
+        //Debug.Log("new m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
 
-        //Debug.Log("sinksink == " + sink.ToString());
-
-        Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
-
-        float sink = leftSink + rightSink;
-
-        Debug.Log("sink == " + sink.ToString());
-
-        //m_akaiController.SetSink(sink);
-        m_akaiController.SetSink(0.2f);
+        //Time.timeScale = 0.0f;
     }
 }
