@@ -19,7 +19,7 @@ public class AkaiFootFallIK : MonoBehaviour
 
     private RaycastHit m_leftFootHit, m_rightFootHit;
 
-    private float m_leftFootWeight, m_rightFootWeight;
+    private float m_leftFootWeight, m_rightFootWeight, m_leftFootHeightOffset, m_rightFootHeightOffset;
 
 	// Use this for initialization
 	void Start ()
@@ -44,10 +44,18 @@ public class AkaiFootFallIK : MonoBehaviour
             {
                 Debug.Log("m_leftFootTransform not found!");
             }
+            else
+            {
+                m_leftFootHeightOffset = m_leftFootTransform.position.y - transform.position.y;
+            }
 
             if (m_rightFootTransform == null)
             {
                 Debug.Log("m_rightFootTranform not found!");
+            }
+            else
+            {
+                m_rightFootHeightOffset = m_rightFootTransform.position.y - transform.position.y;
             }
         }
 
@@ -62,6 +70,32 @@ public class AkaiFootFallIK : MonoBehaviour
 
     private void FixedUpdate ()
     {
+        
+    }
+
+    private void OnDrawGizmos()
+    {
+        if (!Application.isPlaying || !m_akaiController.IsGrounded())
+        {
+            return;
+        }
+
+        Gizmos.color = Color.red;
+        Gizmos.DrawWireSphere(m_leftFootTransform.position, m_footRadius);
+        Gizmos.DrawWireSphere(m_rightFootTransform.position, m_footRadius);
+
+        Gizmos.color = Color.blue;
+        Gizmos.DrawWireSphere(m_leftFootTarPos, m_footRadius);
+        Gizmos.DrawWireSphere(m_rightFootTarPos, m_footRadius);
+    }
+
+    private void OnAnimatorIK(int layerIndex)
+    {
+        if (!m_akaiController.IsGrounded())
+        {
+            return;
+        }
+
         Vector3 leftStartPos = new Vector3(m_leftFootTransform.position.x, transform.position.y + m_maxFootLift, m_leftFootTransform.position.z);
         Vector3 rightStartPos = new Vector3(m_rightFootTransform.position.x, transform.position.y + m_maxFootLift, m_rightFootTransform.position.z);
 
@@ -82,28 +116,6 @@ public class AkaiFootFallIK : MonoBehaviour
         {
             m_rightFootTarPos = m_rightFootTransform.position;
         }
-    }
-
-    private void OnDrawGizmos()
-    {
-        if (!Application.isPlaying)
-        {
-            return;
-        }
-
-        Gizmos.color = Color.red;
-        Gizmos.DrawWireSphere(m_leftFootTransform.position, m_footRadius);
-        Gizmos.DrawWireSphere(m_rightFootTransform.position, m_footRadius);
-
-        Gizmos.color = Color.blue;
-        Gizmos.DrawWireSphere(m_leftFootTarPos, m_footRadius);
-        Gizmos.DrawWireSphere(m_rightFootTarPos, m_footRadius);
-    }
-
-    private void OnAnimatorIK(int layerIndex)
-    {
-        //TRY USING DIP BELOW TRANSFORM.POSITION.Y INSTEAD OF TOTAL POSSIBLE FOOTFALL!!!
-
 
         m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
         m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
@@ -113,47 +125,25 @@ public class AkaiFootFallIK : MonoBehaviour
 
         //Debug.Log("m_leftFootWeight == " + m_leftFootWeight.ToString() + " ; m_rightFootWeight == " + m_rightFootWeight.ToString());
 
-        float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
+        //float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
+        float leftSink = (transform.position.y - m_leftFootTarPos.y) + m_leftFootHeightOffset, rightSink = (transform.position.y - m_rightFootTarPos.y) + m_rightFootHeightOffset;
+
         leftSink *= m_leftFootWeight;
         rightSink *= m_rightFootWeight;
 
         //Debug.Log("old m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
         //Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
 
-        m_akaiController.SetSink(((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink());
+        m_akaiController.SetSink(Mathf.Lerp(m_akaiController.GetSink(), ((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink(), 3.0f * Time.deltaTime));
 
+        m_animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight);
+        m_animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight); //* Vector3.Dot(m_leftFootHit.normal, Vector3.up)
+        m_animator.SetIKPosition(AvatarIKGoal.LeftFoot, m_leftFootTarPos);
+        m_animator.SetIKRotation(AvatarIKGoal.LeftFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_leftFootHit.normal), m_leftFootHit.normal));
 
-        /*
-        float dif = m_leftFootWeight - m_rightFootWeight;
-
-        if (dif < 0.25f && dif > -0.25f)
-        {
-            float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
-            leftSink *= m_leftFootWeight;
-            rightSink *= m_rightFootWeight;
-
-            //Debug.Log("old m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
-            //Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
-
-            m_akaiController.SetSink(((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink());
-        }
-        else if (dif >= 0.25f)
-        {
-            float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y;
-            leftSink *= m_leftFootWeight;
-            m_akaiController.SetSink(leftSink + m_akaiController.GetSink());            
-        }
-        else if (dif <= -0.25f)
-        {
-            float rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
-            rightSink *= m_rightFootWeight;
-            m_akaiController.SetSink(rightSink + m_akaiController.GetSink());
-        }*/
-        
-        //m_akaiController.SetSink(0.2f);
-
-        //Debug.Log("new m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
-
-        //Time.timeScale = 0.0f;
+        m_animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, m_rightFootWeight);
+        m_animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, m_rightFootWeight); //* Vector3.Dot(m_rightFootHit.normal, Vector3.up)
+        m_animator.SetIKPosition(AvatarIKGoal.RightFoot, m_rightFootTarPos);
+        m_animator.SetIKRotation(AvatarIKGoal.RightFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_rightFootHit.normal), m_rightFootHit.normal));
     }
 }

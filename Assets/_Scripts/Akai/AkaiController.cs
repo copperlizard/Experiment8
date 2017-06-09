@@ -318,7 +318,7 @@ public class AkaiController : MonoBehaviour
 
     public void SetSink (float sink)
     {
-        m_sink = sink;
+        m_sink = Mathf.Clamp(sink, -0.45f, 0.45f);
 
         //transform.position = new Vector3(transform.position.x, transform.position.y - sink, transform.position.z);        
     }
