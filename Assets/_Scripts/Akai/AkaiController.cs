@@ -25,7 +25,7 @@ public class AkaiController : MonoBehaviour
 
     private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f, m_sink;
 
-    private bool m_grounded = true, m_jumping = false, m_quickTurning = false, m_headLook = true;
+    private bool m_grounded = true, m_jumping = false, m_crouching = false, m_quickTurning = false, m_headLook = true;
 
     #region UnityEventFuntions
 
@@ -96,6 +96,7 @@ public class AkaiController : MonoBehaviour
 
         m_animator.SetBool("Grounded", m_grounded);
         m_animator.SetBool("Jumping", m_jumping);
+        m_animator.SetBool("Crouching", m_crouching);
     }
 
     private void OnAnimatorMove()
@@ -198,7 +199,7 @@ public class AkaiController : MonoBehaviour
 
         Vector3 kneeHeightPos = transform.position + transform.up * 0.5f; //0.5f being ~character_height - capsule_height
 
-        if (Physics.Raycast(kneeHeightPos, -transform.up, out m_groundAt, 1.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        if (Physics.Raycast(kneeHeightPos, -transform.up, out m_groundAt, 1.0f + ((!m_grounded) ? 0.5f : 0.0f), ~LayerMask.GetMask("Character", "CharacterBody")))
         {
             float inclineCheck = Vector3.Dot(m_groundAt.normal, Vector3.up);
 
@@ -252,6 +253,11 @@ public class AkaiController : MonoBehaviour
         {
             QuickTurn();            
         }
+    }
+
+    public void Crouch (bool crouch)
+    {
+        m_crouching = crouch;
     }
 
     public void Jump ()
@@ -315,7 +321,7 @@ public class AkaiController : MonoBehaviour
     {
         return m_groundAt;
     }
-
+    
     public void SetSink (float sink)
     {
         m_sink = Mathf.Clamp(sink, -0.45f, 0.45f);

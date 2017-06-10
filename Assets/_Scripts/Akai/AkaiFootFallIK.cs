@@ -120,9 +120,12 @@ public class AkaiFootFallIK : MonoBehaviour
         m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
         m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
 
-        m_leftFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_leftFootWeight);
-        m_rightFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_rightFootWeight);
+        //m_leftFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_leftFootWeight);
+        //m_rightFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_rightFootWeight);
 
+        //m_leftFootWeight = Mathf.Sqrt(1.0f - ((1.0f - m_leftFootWeight) * (1.0f - m_leftFootWeight))); //circular ease out
+        //m_rightFootWeight = Mathf.Sqrt(1.0f - ((1.0f - m_rightFootWeight) * (1.0f - m_rightFootWeight)));
+        
         //Debug.Log("m_leftFootWeight == " + m_leftFootWeight.ToString() + " ; m_rightFootWeight == " + m_rightFootWeight.ToString());
 
         //float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
@@ -137,12 +140,12 @@ public class AkaiFootFallIK : MonoBehaviour
         m_akaiController.SetSink(Mathf.Lerp(m_akaiController.GetSink(), ((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink(), 3.0f * Time.deltaTime));
 
         m_animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight);
-        m_animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight); //* Vector3.Dot(m_leftFootHit.normal, Vector3.up)
+        m_animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight * Mathf.SmoothStep(-1.0f, 1.0f, Vector3.Dot(m_leftFootHit.normal, Vector3.up)));
         m_animator.SetIKPosition(AvatarIKGoal.LeftFoot, m_leftFootTarPos);
         m_animator.SetIKRotation(AvatarIKGoal.LeftFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_leftFootHit.normal), m_leftFootHit.normal));
 
         m_animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, m_rightFootWeight);
-        m_animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, m_rightFootWeight); //* Vector3.Dot(m_rightFootHit.normal, Vector3.up)
+        m_animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, m_rightFootWeight * Mathf.SmoothStep(-1.0f, 1.0f, Vector3.Dot(m_rightFootHit.normal, Vector3.up)));
         m_animator.SetIKPosition(AvatarIKGoal.RightFoot, m_rightFootTarPos);
         m_animator.SetIKRotation(AvatarIKGoal.RightFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_rightFootHit.normal), m_rightFootHit.normal));
     }

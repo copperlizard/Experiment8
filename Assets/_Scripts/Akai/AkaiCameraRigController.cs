@@ -53,8 +53,13 @@ public class AkaiCameraRigController : MonoBehaviour
 	void FixedUpdate ()
     {
         if (m_akaiController.IsGrounded())
-        {            
-            m_cameraBoom.transform.position = Vector3.Lerp(m_cameraBoom.transform.position, m_akaiController.GroundAt().point + m_groundOffset, 0.65f);            
+        {           
+             Vector3 tarPos = m_akaiController.GroundAt().point + m_groundOffset;
+
+            m_cameraBoom.transform.position = new Vector3(Mathf.Lerp(m_cameraBoom.transform.position.x, tarPos.x, 10.0f * Time.deltaTime), 
+                Mathf.Lerp(m_cameraBoom.transform.position.y, tarPos.y, 5.0f * Time.deltaTime), Mathf.Lerp(m_cameraBoom.transform.position.z, tarPos.z, 10.0f * Time.deltaTime));
+
+            //m_cameraBoom.transform.position = Vector3.Lerp(m_cameraBoom.transform.position, m_akaiController.GroundAt().point + m_groundOffset, 0.65f);            
             //m_camera.transform.rotation = Quaternion.LookRotation((m_cameraBoom.transform.position - m_camera.transform.position).normalized);
             //m_cameraBoom.transform.position = m_akaiController.GroundAt().point + m_groundOffset;            
         }
@@ -78,12 +83,7 @@ public class AkaiCameraRigController : MonoBehaviour
 
         if (m_autoRotate)
         {
-            m_cameraBoom.transform.rotation = Quaternion.RotateTowards(m_cameraBoom.transform.rotation, transform.rotation, 1.25f);
-
-            /*if (Vector3.Dot(m_cameraBoom.transform.forward, transform.forward) > 0.9999f)
-            {
-                m_autoRotate = false;
-            }*/
+            m_cameraBoom.transform.rotation = Quaternion.RotateTowards(m_cameraBoom.transform.rotation, transform.rotation, 1.25f);            
         }
     }
 

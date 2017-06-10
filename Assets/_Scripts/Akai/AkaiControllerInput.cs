@@ -11,8 +11,8 @@ public class AkaiControllerInput : MonoBehaviour
     private AkaiController m_akaiController;
 
     private Vector2 m_move = Vector2.zero;
-
-    private bool m_fast = false, m_fastCheck = false;
+    
+    private bool m_fast = false, m_fastCheck = false, m_crouch = false;
 
     // Use this for initialization
     void Start()
@@ -52,6 +52,9 @@ public class AkaiControllerInput : MonoBehaviour
         {
             StartCoroutine(JumpOrFast());
         }
+
+        m_akaiController.Crouch((Input.GetAxis("axis10") >= 0.5f));
+        
     }
 
     private IEnumerator JumpOrFast()
