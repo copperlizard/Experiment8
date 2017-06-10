@@ -21,6 +21,8 @@ public class AkaiFootFallIK : MonoBehaviour
 
     private float m_leftFootWeight, m_rightFootWeight, m_leftFootHeightOffset, m_rightFootHeightOffset;
 
+    private bool m_leftFootGrounded = true, m_rightFootGrounded = true;
+
 	// Use this for initialization
 	void Start ()
     {
@@ -102,30 +104,37 @@ public class AkaiFootFallIK : MonoBehaviour
         if (Physics.Raycast(leftStartPos, -transform.up, out m_leftFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
         {
             m_leftFootTarPos = m_leftFootHit.point + transform.up * m_footRadius;
+            m_leftFootGrounded = true;
         }
         else
         {
             m_leftFootTarPos = m_leftFootTransform.position;
+            m_leftFootGrounded = false;
         }
 
         if (Physics.Raycast(rightStartPos, -transform.up, out m_rightFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
         {
             m_rightFootTarPos = m_rightFootHit.point + transform.up * m_footRadius;
+            m_rightFootGrounded = true;
         }
         else
         {
             m_rightFootTarPos = m_rightFootTransform.position;
+            m_rightFootGrounded = false;
         }
 
         m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
         m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
+
+        m_leftFootWeight *= Mathf.Min(m_leftFootWeight / 0.5f, 1.0f);
+        m_rightFootWeight *= Mathf.Min(m_rightFootWeight / 0.5f, 1.0f);
 
         //m_leftFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_leftFootWeight);
         //m_rightFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_rightFootWeight);
 
         //m_leftFootWeight = Mathf.Sqrt(1.0f - ((1.0f - m_leftFootWeight) * (1.0f - m_leftFootWeight))); //circular ease out
         //m_rightFootWeight = Mathf.Sqrt(1.0f - ((1.0f - m_rightFootWeight) * (1.0f - m_rightFootWeight)));
-        
+
         //Debug.Log("m_leftFootWeight == " + m_leftFootWeight.ToString() + " ; m_rightFootWeight == " + m_rightFootWeight.ToString());
 
         //float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
@@ -148,5 +157,15 @@ public class AkaiFootFallIK : MonoBehaviour
         m_animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, m_rightFootWeight * Mathf.SmoothStep(-1.0f, 1.0f, Vector3.Dot(m_rightFootHit.normal, Vector3.up)));
         m_animator.SetIKPosition(AvatarIKGoal.RightFoot, m_rightFootTarPos);
         m_animator.SetIKRotation(AvatarIKGoal.RightFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_rightFootHit.normal), m_rightFootHit.normal));
+    }
+
+    public bool ISLeftFootGrounded ()
+    {
+        return m_leftFootGrounded;
+    }
+
+    public bool ISRightFootGrounded ()
+    {
+        return m_rightFootGrounded;
     }
 }

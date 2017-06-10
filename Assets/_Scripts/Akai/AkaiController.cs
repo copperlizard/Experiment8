@@ -15,6 +15,8 @@ public class AkaiController : MonoBehaviour
 
     private Animator m_animator;
 
+    private AkaiFootFallIK m_footFallIK;
+
     private Rigidbody m_rigidBody;
 
     private RaycastHit m_groundAt;
@@ -36,6 +38,12 @@ public class AkaiController : MonoBehaviour
         if (m_animator == null)
         {
             Debug.Log("m_animator not found!");
+        }
+
+        m_footFallIK = GetComponent<AkaiFootFallIK>();
+        if (m_footFallIK == null)
+        {
+            Debug.Log("m_footFallIK not found!");
         }
 
         m_rigidBody = GetComponent<Rigidbody>();
@@ -206,7 +214,7 @@ public class AkaiController : MonoBehaviour
             if (inclineCheck >= 0.5f)
             {
                 m_grounded = true;
-                m_rigidBody.useGravity = false;
+                m_rigidBody.useGravity = false;                
                 
                 float curY = transform.position.y, groundY = m_groundAt.point.y;
                 float setY = Mathf.Lerp(curY, groundY - m_sink, 10.0f * Time.deltaTime);
@@ -220,8 +228,12 @@ public class AkaiController : MonoBehaviour
             }
         }
 
-        m_grounded = false;
-        m_rigidBody.useGravity = true;
+        //Do Foot Fall Check
+        if (!m_footFallIK.ISLeftFootGrounded() && !m_footFallIK.ISRightFootGrounded())
+        {
+            m_grounded = false;
+            m_rigidBody.useGravity = true;
+        }
     }
 
     public void Move (Vector2 move, bool fast)
@@ -230,7 +242,7 @@ public class AkaiController : MonoBehaviour
         {
             move *= 2.0f;
         }
-        
+
         //Rotate move relative to camera rig
         Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
         Quaternion rot = Quaternion.Euler(0.0f, m_camera.transform.rotation.eulerAngles.y - transform.rotation.eulerAngles.y, 0.0f);
@@ -245,7 +257,7 @@ public class AkaiController : MonoBehaviour
         m_turn = m_move.x;
         
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
-        if (animState.IsName("Normal Locomotion Blend Tree") && !m_quickTurning)
+        if ((animState.IsName("Normal Locomotion Blend Tree") || animState.IsName("Crouching Locomotion Blend Tree")) && !m_quickTurning)
         {
             ApplyRotation();
         }
@@ -257,6 +269,16 @@ public class AkaiController : MonoBehaviour
 
     public void Crouch (bool crouch)
     {
+        /*float inclineCheck = Vector3.Dot(m_groundAt.normal, Vector3.up);
+        if (inclineCheck < 0.85f)
+        {
+            m_crouching = false;
+        }
+        else
+        {
+            m_crouching = crouch;
+        }*/
+
         m_crouching = crouch;
     }
 
