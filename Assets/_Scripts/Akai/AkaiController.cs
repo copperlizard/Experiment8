@@ -109,18 +109,24 @@ public class AkaiController : MonoBehaviour
 
     private void OnAnimatorMove()
     {
-        if (Time.timeScale <= 0.0f && m_jumping)
+        if (Time.timeScale <= 0.0f)
         {
             return;
         }
 
+        /*AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
+        if (animState.IsName("LeftFootLanding") || animState.IsName("RightFootLanding"))
+        {
+            return;
+        }*/
+
         Vector3 v = m_animator.deltaPosition / Time.deltaTime;
 
-        if (!m_grounded)
+        if (m_rigidBody.useGravity)
         {
             // preserve the existing y part of the current velocity.
             //v.y = m_rigidBody.velocity.y;
-            v = m_rigidBody.velocity;
+            v = m_rigidBody.velocity;            
         }
 
         m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, 8.0f * Time.deltaTime);        
@@ -141,11 +147,11 @@ public class AkaiController : MonoBehaviour
         }
     }*/
 
-    private void OnDrawGizmos()
+    /*private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(m_groundAt.point, 0.05f);
-    }
+    }*/
 
     #endregion
 
@@ -207,12 +213,27 @@ public class AkaiController : MonoBehaviour
 
         Vector3 kneeHeightPos = transform.position + transform.up * 0.5f; //0.5f being ~character_height - capsule_height
 
-        if (Physics.Raycast(kneeHeightPos, -transform.up, out m_groundAt, 1.0f + ((!m_grounded) ? 0.5f : 0.0f), ~LayerMask.GetMask("Character", "CharacterBody")))
+        if (Physics.Raycast(kneeHeightPos, -transform.up, out m_groundAt, 1.0f + ((m_rigidBody.useGravity) ? 0.5f : 0.0f), ~LayerMask.GetMask("Character", "CharacterBody")))
         {
             float inclineCheck = Vector3.Dot(m_groundAt.normal, Vector3.up);
 
             if (inclineCheck >= 0.5f)
             {
+                /*AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
+                if (animState.IsName("LeftFootFalling") || animState.IsName("RightFootFalling"))
+                {  
+                    return;
+                }*/
+
+                if (m_rigidBody.useGravity)
+                {
+                    if ((kneeHeightPos - m_groundAt.point).magnitude > 1.0f)
+                    {
+                        m_grounded = true;
+                        return;
+                    }
+                }
+
                 m_grounded = true;
                 m_rigidBody.useGravity = false;                
                 
@@ -227,6 +248,9 @@ public class AkaiController : MonoBehaviour
                 return;
             }
         }
+
+        //m_grounded = false;
+        //m_rigidBody.useGravity = true;
 
         //Do Foot Fall Check
         if (!m_footFallIK.ISLeftFootGrounded() && !m_footFallIK.ISRightFootGrounded())
