@@ -7,7 +7,7 @@ using UnityEngine;
 public class AkaiController : MonoBehaviour
 {
     [SerializeField]
-    float m_StationaryTurnSpeed = 180.0f, m_MovingTurnSpeed = 360.0f, m_RunCycleLegOffset = 0.2f; 
+    float m_StationaryTurnSpeed = 180.0f, m_MovingTurnSpeed = 360.0f, m_RunCycleLegOffset = 0.2f, m_jumpCoolDown = 0.2f, m_characterHeight = 1.8f; 
 
     private AkaiCameraRigController m_cameraRig;
     private Transform m_cameraBoom;
@@ -19,15 +19,18 @@ public class AkaiController : MonoBehaviour
 
     private Rigidbody m_rigidBody;
 
-    private RaycastHit m_groundAt;
+    private RaycastHit m_groundAt, m_leftHandLedgeGrab, m_rightHandLedgeGrab; //handgrabs for logic not anim.IK
 
     private Quaternion m_QuickTurnStartRot;
+
+    private ContactPoint m_levelContactPointA = new ContactPoint(), m_levelContactPointB = new ContactPoint();
 
     private Vector2 m_move = Vector2.zero;
 
     private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f, m_sink;
 
-    private bool m_grounded = true, m_jumping = false, m_crouching = false, m_quickTurning = false, m_headLook = true;
+    private bool m_grounded = true, m_jumping = false, m_jumpOnCD = false, m_crouching = false, m_quickTurning = false, m_headLook = true, m_facingDirection = false,
+        m_touchingLevel = false, m_leftHandHoldFound = false, m_rightHandHoldFound = false, m_ledgeGrab = false, m_wallRun = false, m_wallClimb = false, m_groundReset = false;
 
     #region UnityEventFuntions
 
@@ -88,6 +91,7 @@ public class AkaiController : MonoBehaviour
     private void FixedUpdate ()
     {
         GroundCheck();
+        CheckForLevelInteraction();
     }
 
     private void UpdateAnimator()
@@ -114,11 +118,11 @@ public class AkaiController : MonoBehaviour
             return;
         }
 
-        /*AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
-        if (animState.IsName("LeftFootLanding") || animState.IsName("RightFootLanding"))
+        if (m_ledgeGrab)
         {
+            LedgeMove();
             return;
-        }*/
+        }
 
         Vector3 v = m_animator.deltaPosition / Time.deltaTime;
 
@@ -138,27 +142,243 @@ public class AkaiController : MonoBehaviour
         m_animator.SetLookAtWeight(m_lookWeight);
         m_animator.SetLookAtPosition(m_cameraBoom.transform.position + m_cameraBoom.transform.forward * 10.0f);
     }
-
-    /*private void OnCollisionEnter(Collision collision)
+        
+    private void OnCollisionEnter(Collision collision)
     {
         if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
         {
-            transform.position = transform.position + collision.contacts[0].normal * 0.1f;
-        }
-    }*/
+            if (m_grounded)
+            {
+                transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+            }
+            else
+            {
+                float ang = Mathf.Max(Vector3.Dot(m_rigidBody.velocity, -collision.contacts[0].normal), 0.0f);
+                m_rigidBody.velocity = new Vector3(m_rigidBody.velocity.x * (1.0f - ang), m_rigidBody.velocity.y, m_rigidBody.velocity.z * (1.0f - ang));
+            }
 
-    /*private void OnDrawGizmos()
+            m_levelContactPointA = collision.contacts[0];
+            m_levelContactPointB = collision.contacts[collision.contacts.Length - 1];
+
+            m_touchingLevel = true;
+
+            //CheckForLevelInteraction();
+        }
+    }
+
+    private void OnCollisionStay(Collision collision)
+    {
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
+        {
+            if (m_grounded)
+            {
+                transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+            }
+
+            m_levelContactPointA = collision.contacts[0];
+            m_levelContactPointB = collision.contacts[collision.contacts.Length - 1];
+
+            m_touchingLevel = true;
+
+            //CheckForLevelInteraction();
+        }
+    }
+
+    private void OnCollisionExit(Collision collision)
+    {
+        if (!m_grounded && !m_groundReset)
+        {
+            StartCoroutine(ResetOnGround(collision));
+            return;
+        }
+
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
+        {
+            m_levelContactPointA = new ContactPoint();
+            m_levelContactPointB = new ContactPoint();
+
+            m_touchingLevel = false;
+            CheckForLevelInteraction(); //clear interaction flags
+        }
+    }
+
+    private IEnumerator ResetOnGround (Collision collision)
+    {
+        m_groundReset = true;
+        while (!m_grounded)
+        {
+            yield return null;
+        }
+
+        if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
+        {
+            m_levelContactPointA = new ContactPoint();
+            m_levelContactPointB = new ContactPoint();
+
+            m_touchingLevel = false;
+            CheckForLevelInteraction(); //clear interaction flags
+        }
+
+        m_groundReset = false;
+        yield return null;
+    }
+
+    private void OnDrawGizmos()
     {
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(m_groundAt.point, 0.05f);
-    }*/
+        Gizmos.DrawWireSphere(m_levelContactPointA.point, 0.05f);
+        Gizmos.DrawWireSphere(m_levelContactPointB.point, 0.05f);
+        Gizmos.DrawLine(m_levelContactPointA.point, m_levelContactPointA.point + m_levelContactPointA.normal);
+        Gizmos.DrawLine(m_levelContactPointB.point, m_levelContactPointB.point + m_levelContactPointB.normal);
+
+        Gizmos.color = Color.magenta;
+
+        if (m_leftHandHoldFound)
+        {
+            Gizmos.DrawWireSphere(m_leftHandLedgeGrab.point, 0.05f);
+        }
+
+        if (m_rightHandHoldFound)
+        {
+            Gizmos.DrawWireSphere(m_rightHandLedgeGrab.point, 0.05f);
+        }
+    }
 
     #endregion
 
     #region MovementFunctions
 
+    private void CheckForLevelInteraction ()
+    {
+        // ADD "FENCE HOP" LATER!!!
+        // ADD "FENCE HOP" LATER!!!
+        // ADD "FENCE HOP" LATER!!!
+        // ADD "FENCE HOP" LATER!!!
+        // ADD "FENCE HOP" LATER!!!
+        // ADD "FENCE HOP" LATER!!!
+        
+        if (m_ledgeGrab) // ledge grab ended by ledge move...
+        {
+            return;
+        }
+
+        if (!m_touchingLevel)
+        {
+            // Clear all interaction flags...
+            m_leftHandHoldFound = false;
+            m_rightHandHoldFound = false;
+            m_ledgeGrab = false;
+            m_wallRun = false;
+            m_wallClimb = false;
+            return;
+        }
+
+        Vector3 lerpnorm = Vector3.Lerp(m_levelContactPointA.normal, m_levelContactPointB.normal, 0.5f);
+        float facingWall = -Vector3.Dot(transform.forward, lerpnorm);
+
+        if (facingWall < 0.5f) // not facing wall enough
+        {
+            // Clear all interaction flags...
+            m_ledgeGrab = false;
+            m_wallRun = false;
+            m_wallClimb = false;            
+            return;
+        }
+        else // turn to face wall
+        {   
+            FaceDirection(-lerpnorm);
+        }
+
+        m_leftHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)), -transform.up, out m_leftHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
+        m_rightHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.4f)), -transform.up, out m_rightHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
+
+        // ledge grab check
+        if (m_leftHandHoldFound && m_rightHandHoldFound) // requires two hands (maybe wallclimb doesn't...)
+        {
+            if (Mathf.Abs(m_leftHandLedgeGrab.point.y - m_rightHandLedgeGrab.point.y) < 0.3f) // make sure ledge not too slanted
+            {
+                Debug.Log("checking ledge grab!");
+
+                float avgY = (m_leftHandLedgeGrab.point.y + m_rightHandLedgeGrab.point.y) / 2.0f;
+
+                Debug.Log("avgY == " + avgY.ToString() + " ; transform.position.y + m_characterHeight == " + (transform.position.y + m_characterHeight).ToString());
+
+                if (avgY < transform.position.y + m_characterHeight - 0.15f)
+                {
+                    Debug.Log("character too high!");
+                    m_ledgeGrab = false;
+                }
+                else if (avgY > transform.position.y + m_characterHeight + 0.15f)
+                {
+                    Debug.Log("character too low!");
+                    m_ledgeGrab = false;
+                }
+                else
+                {
+                    Debug.Log("grab ledge!");
+                    m_ledgeGrab = true;
+                }
+            }
+        }
+
+        /* BRAINSTORM!!!!!
+        if can grab ledge, grab ledge first; if can't grab ledge but can wall run, wall run; if can't wall run then climb
+        can grab ledge airborne (force jump if grounded and ledge within jump range)
+        can only wall run if grounded and ledge in wall run range...
+        can only climb climbable surfaces; lowest priority, should switch to ledge grab when reaching ledge...
+        could use two sphere casts to look for hand holds... check height dif from player and grounded status 
+        */
+    }
+
+    private void LedgeMove () //called by OnAnimatorMove()...
+    {
+        if (m_rigidBody.useGravity)
+        {
+            m_rigidBody.useGravity = false;
+        }
+
+        if (m_grounded)
+        {
+            m_grounded = false;
+        }
+
+        m_rigidBody.velocity = Vector3.zero;
+    }    
+
+    private void FaceDirection (Vector3 dir)
+    {
+        if (!m_facingDirection)
+        {
+            StartCoroutine(FacingDirection(dir));
+        }
+    }
+
+    private IEnumerator FacingDirection (Vector3 dir)
+    {
+        m_facingDirection = true;
+
+        float facingDir = Vector3.Dot(transform.forward, dir);
+
+        Quaternion tarRot = Quaternion.LookRotation(dir, transform.up);
+
+        while (facingDir < 0.99f)
+        {            
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, tarRot, 15.0f);
+            facingDir = Vector3.Dot(transform.forward, dir);
+            yield return null;
+        }
+        
+        yield return null;
+        m_facingDirection = false;
+    }
+
     private void ApplyRotation ()
     {
+        if (m_facingDirection) //probably unecessary
+        {
+            return;
+        }
+
         // In addition to root rotation in the animation
         float turnSpeed = Mathf.Lerp(m_StationaryTurnSpeed, m_MovingTurnSpeed / Mathf.Max(1.0f, m_forward), m_forward);
         transform.Rotate(0, m_turn * turnSpeed * Time.deltaTime, 0);
@@ -166,7 +386,7 @@ public class AkaiController : MonoBehaviour
 
     private void QuickTurn ()
     {
-        if (!m_quickTurning)
+        if (!m_quickTurning && !m_facingDirection) //probably unecessary to check m_facingDirection
         {
             Vector3 move3d = new Vector3(m_move.x, 0.0f, m_move.y);
             move3d = transform.TransformDirection(move3d);
@@ -206,7 +426,7 @@ public class AkaiController : MonoBehaviour
 
     private void GroundCheck ()
     {
-        if (m_jumping)
+        if (m_jumping || m_ledgeGrab)
         {
             return;
         }
@@ -279,7 +499,7 @@ public class AkaiController : MonoBehaviour
         
         m_forward = m_move.y;
         m_turn = m_move.x;
-        
+                
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
         if ((animState.IsName("Normal Locomotion Blend Tree") || animState.IsName("Crouching Locomotion Blend Tree")) && !m_quickTurning)
         {
@@ -308,7 +528,7 @@ public class AkaiController : MonoBehaviour
 
     public void Jump ()
     {
-        if (m_jumping || !m_grounded)
+        if (m_jumping || !m_grounded || m_jumpOnCD)
         {
             return;
         }
@@ -323,11 +543,18 @@ public class AkaiController : MonoBehaviour
         Debug.Log("jump!");
         m_jumping = true;
         m_grounded = false;
+        m_jumpOnCD = true;
 
         m_rigidBody.useGravity = true;
         Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 200.0f);
-        m_rigidBody.AddForce(Vector3.up * 400.0f + push, ForceMode.Impulse);
-        
+        if (!m_touchingLevel)
+        {
+            m_rigidBody.AddForce(push, ForceMode.Impulse);
+        }
+
+        m_rigidBody.AddForce(Vector3.up * 400.0f, ForceMode.Impulse);
+
+        // Wait for jump to start
         while (!animState.IsName("Left Leg Jump Blend Tree") && !animState.IsName("Right Leg Jump Blend Tree"))
         {
             //Debug.Log("1");
@@ -335,8 +562,7 @@ public class AkaiController : MonoBehaviour
             yield return null;
         }
 
-        //m_rigidBody.useGravity = true;
-        //Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 1000.0f);
+        // Wait for jump to end
         while ((animState.IsName("Left Leg Jump Blend Tree") || animState.IsName("Right Leg Jump Blend Tree")) && animState.normalizedTime < 0.99f)
         {
             //Debug.Log("2");
@@ -345,11 +571,17 @@ public class AkaiController : MonoBehaviour
             //m_rigidBody.AddForce(Vector3.up * 2000.0f + push);
             yield return null;
         }
-
         
         m_jumping = false;
-
-        Debug.Log("done jumping!");
+        
+        // Wait for jump cooldown
+        
+        float startCoolDown = Time.time;
+        while (startCoolDown + m_jumpCoolDown > Time.time)
+        {
+            yield return null;
+        }
+        m_jumpOnCD = false;
 
         yield return null;
     }
