@@ -126,8 +126,11 @@ public class AkaiFootFallIK : MonoBehaviour
         m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
         m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
 
-        m_leftFootWeight *= Mathf.Min(m_leftFootWeight / 0.5f, 1.0f);
-        m_rightFootWeight *= Mathf.Min(m_rightFootWeight / 0.5f, 1.0f);
+        m_leftFootWeight = m_leftFootWeight * m_leftFootWeight * m_leftFootWeight;
+        m_rightFootWeight = m_rightFootWeight * m_rightFootWeight * m_rightFootWeight;
+
+        //m_leftFootWeight *= Mathf.Min(m_leftFootWeight / 0.5f, 1.0f);
+        //m_rightFootWeight *= Mathf.Min(m_rightFootWeight / 0.5f, 1.0f);
 
         //m_leftFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_leftFootWeight);
         //m_rightFootWeight = Mathf.SmoothStep(0.0f, 1.0f, m_rightFootWeight);
@@ -137,15 +140,11 @@ public class AkaiFootFallIK : MonoBehaviour
 
         //Debug.Log("m_leftFootWeight == " + m_leftFootWeight.ToString() + " ; m_rightFootWeight == " + m_rightFootWeight.ToString());
 
-        //float leftSink = m_leftFootTransform.position.y - m_leftFootTarPos.y, rightSink = m_rightFootTransform.position.y - m_rightFootTarPos.y;
-        float leftSink = (transform.position.y - m_leftFootTarPos.y) + m_leftFootHeightOffset, rightSink = (transform.position.y - m_rightFootTarPos.y) + m_rightFootHeightOffset;
+        float leftSink = ((transform.position.y - m_akaiController.GetSink()) - m_leftFootTarPos.y) + m_leftFootHeightOffset, rightSink = ((transform.position.y - m_akaiController.GetSink()) - m_rightFootTarPos.y) + m_rightFootHeightOffset;
 
         leftSink *= m_leftFootWeight;
         rightSink *= m_rightFootWeight;
-
-        //Debug.Log("old m_akaiController.m_sink == " + m_akaiController.GetSink().ToString());
-        //Debug.Log("leftSink == " + leftSink.ToString() + " ; rightSink == " + rightSink.ToString());
-
+        
         m_akaiController.SetSink(Mathf.Lerp(m_akaiController.GetSink(), ((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink(), 3.0f * Time.deltaTime));
 
         m_animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight);

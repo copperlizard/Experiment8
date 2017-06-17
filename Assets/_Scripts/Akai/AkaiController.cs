@@ -30,7 +30,8 @@ public class AkaiController : MonoBehaviour
     private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f, m_sink;
 
     private bool m_grounded = true, m_jumping = false, m_jumpOnCD = false, m_crouching = false, m_quickTurning = false, m_headLook = true, m_facingDirection = false,
-        m_touchingLevel = false, m_leftHandHoldFound = false, m_rightHandHoldFound = false, m_ledgeGrab = false, m_wallRun = false, m_wallClimb = false, m_groundReset = false;
+        m_touchingLevel = false, m_leftHandHoldFound = false, m_rightHandHoldFound = false, m_ledgeGrab = false, m_ledgeClimb = false, m_ledgeClimbing = false, 
+        m_wallRun = false, m_wallClimb = false, m_groundReset = false;
 
     #region UnityEventFuntions
 
@@ -90,8 +91,12 @@ public class AkaiController : MonoBehaviour
 
     private void FixedUpdate ()
     {
-        GroundCheck();
         CheckForLevelInteraction();
+
+
+
+        GroundCheck();
+        
     }
 
     private void UpdateAnimator()
@@ -109,6 +114,7 @@ public class AkaiController : MonoBehaviour
         m_animator.SetBool("Grounded", m_grounded);
         m_animator.SetBool("Jumping", m_jumping);
         m_animator.SetBool("Crouching", m_crouching);
+        m_animator.SetBool("LedgeHang", m_ledgeGrab);
     }
 
     private void OnAnimatorMove()
@@ -118,7 +124,7 @@ public class AkaiController : MonoBehaviour
             return;
         }
 
-        if (m_ledgeGrab)
+        if (m_ledgeGrab || m_ledgeClimb || m_ledgeClimbing)
         {
             LedgeMove();
             return;
@@ -257,7 +263,7 @@ public class AkaiController : MonoBehaviour
         // ADD "FENCE HOP" LATER!!!
         // ADD "FENCE HOP" LATER!!!
         
-        if (m_ledgeGrab) // ledge grab ended by ledge move...
+        if (m_ledgeGrab || m_ledgeClimbing) // ledge grab ended by ledge move...
         {
             return;
         }
@@ -297,37 +303,42 @@ public class AkaiController : MonoBehaviour
         {
             if (Mathf.Abs(m_leftHandLedgeGrab.point.y - m_rightHandLedgeGrab.point.y) < 0.3f) // make sure ledge not too slanted
             {
-                Debug.Log("checking ledge grab!");
+                //Debug.Log("checking ledge grab!");
 
                 float avgY = (m_leftHandLedgeGrab.point.y + m_rightHandLedgeGrab.point.y) / 2.0f;
 
-                Debug.Log("avgY == " + avgY.ToString() + " ; transform.position.y + m_characterHeight == " + (transform.position.y + m_characterHeight).ToString());
+                //Debug.Log("avgY == " + avgY.ToString() + " ; transform.position.y + m_characterHeight == " + (transform.position.y + m_characterHeight).ToString());
 
                 if (avgY < transform.position.y + m_characterHeight - 0.15f)
                 {
-                    Debug.Log("character too high!");
+                    //Debug.Log("character too high!");
                     m_ledgeGrab = false;
                 }
                 else if (avgY > transform.position.y + m_characterHeight + 0.15f)
                 {
-                    Debug.Log("character too low!");
+                    //Debug.Log("character too low!");
                     m_ledgeGrab = false;
                 }
                 else
                 {
                     Debug.Log("grab ledge!");
-                    m_ledgeGrab = true;
+
+                    if (m_move.y > -0.75f && m_move.y < 0.75f)
+                    {
+                        m_ledgeGrab = true;
+                    }
+                    else if (m_move.y > 0.75f)
+                    {
+                        m_ledgeGrab = false;
+                        m_ledgeClimb = true;
+                    }
+                    else
+                    {
+                        m_ledgeGrab = false;
+                    }
                 }
             }
         }
-
-        /* BRAINSTORM!!!!!
-        if can grab ledge, grab ledge first; if can't grab ledge but can wall run, wall run; if can't wall run then climb
-        can grab ledge airborne (force jump if grounded and ledge within jump range)
-        can only wall run if grounded and ledge in wall run range...
-        can only climb climbable surfaces; lowest priority, should switch to ledge grab when reaching ledge...
-        could use two sphere casts to look for hand holds... check height dif from player and grounded status 
-        */
     }
 
     private void LedgeMove () //called by OnAnimatorMove()...
@@ -342,8 +353,87 @@ public class AkaiController : MonoBehaviour
             m_grounded = false;
         }
 
+        m_leftHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.425f)), -transform.up, out m_leftHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
+        m_rightHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.425f)), -transform.up, out m_rightHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
+
+        if (m_ledgeClimb)
+        {
+            LedgeClimb();
+            return;
+        }
+        
         m_rigidBody.velocity = Vector3.zero;
+
+        transform.position = Vector3.Lerp(transform.position, Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f) + transform.rotation * new Vector3(0.0f, -1.675f, -0.425f) + transform.right * m_turn, 3.0f * Time.deltaTime);
+
+        if (m_move.y > 0.75 || m_move.y < -0.75)
+        {
+            m_ledgeGrab = false;
+        }
     }    
+
+    private void LedgeClimb ()
+    {
+        if (!m_ledgeClimbing)
+        {
+            StartCoroutine(ClimbingLedge());
+        }
+    }
+
+    private IEnumerator ClimbingLedge ()
+    {
+        m_ledgeClimbing = true;
+        
+        if (!m_leftHandHoldFound || !m_rightHandHoldFound)
+        {
+            m_ledgeClimbing = false;
+            yield break;
+        }
+
+        Vector3 midHand = Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f);
+        Vector3 climbTo = transform.position + transform.forward * 0.425f;
+        climbTo.y = midHand.y;
+
+        //Vector3 climbTo = Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f) + transform.forward * 0.3f;
+
+        m_ledgeGrab = false;
+        AnimatorStateInfo animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
+        Vector3 startPos = transform.position;
+
+        //Wait for climb animation
+        if (animInfo.IsName("LedgeHang Blend Tree"))
+        {
+            while (animInfo.IsName("LedgeHang Blend Tree"))
+            {
+                animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
+                yield return null;
+            }
+        }
+        else
+        {
+            Debug.Log("wtf");
+            //yield break;
+        }
+
+        do
+        {
+            Debug.DrawLine(startPos, climbTo, Color.red);
+
+            //transform.position = Vector3.Lerp(startPos, startPos + Vector3.up * 10.0f, animInfo.normalizedTime);
+            //transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime);
+
+            transform.position = new Vector3(Mathf.Lerp(startPos.x, climbTo.x, animInfo.normalizedTime * animInfo.normalizedTime), Mathf.Lerp(startPos.y, climbTo.y, animInfo.normalizedTime), Mathf.Lerp(startPos.z, climbTo.z, animInfo.normalizedTime * animInfo.normalizedTime));
+
+            animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        } while (animInfo.normalizedTime < 0.999 && animInfo.IsName("LedgeClimb State"));
+        
+        m_ledgeGrab = false;
+        m_ledgeClimb = false;
+        m_ledgeClimbing = false;
+        m_grounded = true;
+        yield return null;
+    }
 
     private void FaceDirection (Vector3 dir)
     {
@@ -367,6 +457,8 @@ public class AkaiController : MonoBehaviour
             facingDir = Vector3.Dot(transform.forward, dir);
             yield return null;
         }
+
+        transform.rotation = tarRot;
         
         yield return null;
         m_facingDirection = false;
@@ -426,7 +518,7 @@ public class AkaiController : MonoBehaviour
 
     private void GroundCheck ()
     {
-        if (m_jumping || m_ledgeGrab)
+        if (m_jumping || m_ledgeGrab || m_ledgeClimbing || m_ledgeClimb)
         {
             return;
         }
