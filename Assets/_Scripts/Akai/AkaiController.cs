@@ -263,7 +263,7 @@ public class AkaiController : MonoBehaviour
         // ADD "FENCE HOP" LATER!!!
         // ADD "FENCE HOP" LATER!!!
         
-        if (m_ledgeGrab || m_ledgeClimbing) // ledge grab ended by ledge move...
+        if (m_ledgeGrab || m_ledgeClimbing || m_ledgeClimb) // ledge grab ended by ledge move...
         {
             return;
         }
@@ -319,23 +319,10 @@ public class AkaiController : MonoBehaviour
                     //Debug.Log("character too low!");
                     m_ledgeGrab = false;
                 }
-                else
+                else if (m_move.y >= -0.75f)
                 {
                     Debug.Log("grab ledge!");
-
-                    if (m_move.y > -0.75f && m_move.y < 0.75f)
-                    {
-                        m_ledgeGrab = true;
-                    }
-                    else if (m_move.y > 0.75f)
-                    {
-                        m_ledgeGrab = false;
-                        m_ledgeClimb = true;
-                    }
-                    else
-                    {
-                        m_ledgeGrab = false;
-                    }
+                    m_ledgeGrab = true;
                 }
             }
         }
@@ -355,7 +342,19 @@ public class AkaiController : MonoBehaviour
 
         m_leftHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.425f)), -transform.up, out m_leftHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
         m_rightHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.425f)), -transform.up, out m_rightHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
-
+        
+        if (m_move.y > 0.75f)
+        {
+            //m_ledgeGrab = false;
+            m_ledgeClimb = true;
+            m_ledgeGrab = false;
+        }
+        else if (m_move.y < -0.75f)
+        {
+            m_ledgeGrab = false;
+            m_rigidBody.useGravity = true;
+        }
+        
         if (m_ledgeClimb)
         {
             LedgeClimb();
@@ -395,24 +394,15 @@ public class AkaiController : MonoBehaviour
         climbTo.y = midHand.y;
 
         //Vector3 climbTo = Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f) + transform.forward * 0.3f;
-
-        m_ledgeGrab = false;
+        
         AnimatorStateInfo animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
         Vector3 startPos = transform.position;
-
-        //Wait for climb animation
-        if (animInfo.IsName("LedgeHang Blend Tree"))
+        
+        while (!animInfo.IsName("LedgeClimb State"))
         {
-            while (animInfo.IsName("LedgeHang Blend Tree"))
-            {
-                animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
-                yield return null;
-            }
-        }
-        else
-        {
-            Debug.Log("wtf");
-            //yield break;
+            animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
+            transform.position = startPos;
+            yield return null;
         }
 
         do
@@ -420,9 +410,10 @@ public class AkaiController : MonoBehaviour
             Debug.DrawLine(startPos, climbTo, Color.red);
 
             //transform.position = Vector3.Lerp(startPos, startPos + Vector3.up * 10.0f, animInfo.normalizedTime);
-            //transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime);
 
-            transform.position = new Vector3(Mathf.Lerp(startPos.x, climbTo.x, animInfo.normalizedTime * animInfo.normalizedTime), Mathf.Lerp(startPos.y, climbTo.y, animInfo.normalizedTime), Mathf.Lerp(startPos.z, climbTo.z, animInfo.normalizedTime * animInfo.normalizedTime));
+            transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime);
+
+            //transform.position = new Vector3(Mathf.Lerp(startPos.x, climbTo.x, animInfo.normalizedTime * animInfo.normalizedTime), Mathf.Lerp(startPos.y, climbTo.y, animInfo.normalizedTime), Mathf.Lerp(startPos.z, climbTo.z, animInfo.normalizedTime * animInfo.normalizedTime));
 
             animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
