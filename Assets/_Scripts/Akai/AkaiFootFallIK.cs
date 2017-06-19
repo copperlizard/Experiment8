@@ -98,6 +98,20 @@ public class AkaiFootFallIK : MonoBehaviour
             return;
         }
 
+        if (!m_akaiController.IsCrouching())
+        {
+            NormalLocamotion();
+        }
+        else
+        {
+            Crouching();
+        }
+
+        
+    }
+
+    private void NormalLocamotion ()
+    {
         Vector3 leftStartPos = new Vector3(m_leftFootTransform.position.x, transform.position.y + m_maxFootLift, m_leftFootTransform.position.z);
         Vector3 rightStartPos = new Vector3(m_rightFootTransform.position.x, transform.position.y + m_maxFootLift, m_rightFootTransform.position.z);
 
@@ -144,8 +158,59 @@ public class AkaiFootFallIK : MonoBehaviour
 
         leftSink *= m_leftFootWeight;
         rightSink *= m_rightFootWeight;
-        
+
         m_akaiController.SetSink(Mathf.Lerp(m_akaiController.GetSink(), ((leftSink > rightSink) ? leftSink : rightSink) + m_akaiController.GetSink(), 3.0f * Time.deltaTime));
+
+        m_animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight);
+        m_animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight * Mathf.SmoothStep(-1.0f, 1.0f, Vector3.Dot(m_leftFootHit.normal, Vector3.up)));
+        m_animator.SetIKPosition(AvatarIKGoal.LeftFoot, m_leftFootTarPos);
+        m_animator.SetIKRotation(AvatarIKGoal.LeftFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_leftFootHit.normal), m_leftFootHit.normal));
+
+        m_animator.SetIKPositionWeight(AvatarIKGoal.RightFoot, m_rightFootWeight);
+        m_animator.SetIKRotationWeight(AvatarIKGoal.RightFoot, m_rightFootWeight * Mathf.SmoothStep(-1.0f, 1.0f, Vector3.Dot(m_rightFootHit.normal, Vector3.up)));
+        m_animator.SetIKPosition(AvatarIKGoal.RightFoot, m_rightFootTarPos);
+        m_animator.SetIKRotation(AvatarIKGoal.RightFoot, Quaternion.LookRotation(Vector3.Cross(transform.right, m_rightFootHit.normal), m_rightFootHit.normal));
+    }
+
+    private void Crouching ()
+    {
+        Vector3 leftStartPos = new Vector3(m_leftFootTransform.position.x, transform.position.y + m_maxFootLift, m_leftFootTransform.position.z);
+        Vector3 rightStartPos = new Vector3(m_rightFootTransform.position.x, transform.position.y + m_maxFootLift, m_rightFootTransform.position.z);
+
+        if (Physics.Raycast(leftStartPos, -transform.up, out m_leftFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        {
+            m_leftFootTarPos = m_leftFootHit.point + transform.up * m_footRadius;
+            m_leftFootGrounded = true;
+        }
+        else
+        {
+            m_leftFootTarPos = m_leftFootTransform.position;
+            m_leftFootGrounded = false;
+        }
+
+        if (Physics.Raycast(rightStartPos, -transform.up, out m_rightFootHit, m_maxFootLift * 2.0f, ~LayerMask.GetMask("Character", "CharacterBody")))
+        {
+            m_rightFootTarPos = m_rightFootHit.point + transform.up * m_footRadius;
+            m_rightFootGrounded = true;
+        }
+        else
+        {
+            m_rightFootTarPos = m_rightFootTransform.position;
+            m_rightFootGrounded = false;
+        }
+
+        m_leftFootWeight = m_animator.GetFloat("LeftFootWeight");
+        m_rightFootWeight = m_animator.GetFloat("RightFootWeight");
+
+        m_leftFootWeight = m_leftFootWeight * m_leftFootWeight * m_leftFootWeight;
+        m_rightFootWeight = m_rightFootWeight * m_rightFootWeight * m_rightFootWeight;
+        
+        float leftSink = ((transform.position.y - m_akaiController.GetSink()) - m_leftFootTarPos.y) + m_leftFootHeightOffset, rightSink = ((transform.position.y - m_akaiController.GetSink()) - m_rightFootTarPos.y) + m_rightFootHeightOffset;
+
+        leftSink *= m_leftFootWeight;
+        rightSink *= m_rightFootWeight;
+
+        m_akaiController.SetSink(Mathf.Lerp(m_akaiController.GetSink(), ((leftSink < rightSink) ? leftSink : rightSink) + m_akaiController.GetSink(), 3.0f * Time.deltaTime));
 
         m_animator.SetIKPositionWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight);
         m_animator.SetIKRotationWeight(AvatarIKGoal.LeftFoot, m_leftFootWeight * Mathf.SmoothStep(-1.0f, 1.0f, Vector3.Dot(m_leftFootHit.normal, Vector3.up)));

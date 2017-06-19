@@ -27,9 +27,9 @@ public class AkaiController : MonoBehaviour
 
     private Vector2 m_move = Vector2.zero;
 
-    private float m_forward, m_turn, m_forwardIncline, m_lookWeight = 1.0f, m_sink;
+    private float m_forward, m_turn, m_forwardIncline, m_jumpLeg = 0.0f, m_lookWeight = 1.0f, m_sink;
 
-    private bool m_grounded = true, m_jumping = false, m_jumpOnCD = false, m_crouching = false, m_quickTurning = false, m_headLook = true, m_facingDirection = false,
+    private bool m_grounded = true, m_jumping = false, m_jumpOnCD = false, m_crouching = false, m_quickTurn = false, m_quickTurning = false, m_headLook = true, m_facingDirection = false,
         m_touchingLevel = false, m_leftHandHoldFound = false, m_rightHandHoldFound = false, m_ledgeGrab = false, m_ledgeClimb = false, m_ledgeClimbing = false, 
         m_wallRun = false, m_wallClimb = false, m_groundReset = false;
 
@@ -106,15 +106,19 @@ public class AkaiController : MonoBehaviour
         m_animator.SetFloat("Turn", m_turn);
         m_animator.SetFloat("ForwardIncline", m_forwardIncline);
         
-        float runCycle = Mathf.Repeat(m_animator.GetCurrentAnimatorStateInfo(0).normalizedTime + m_RunCycleLegOffset, 1);
-        float jumpLeg = (runCycle < 0.5f ? 1 : -1) * m_forward;
-        m_animator.SetFloat("JumpLeg", jumpLeg);
-
+        if (m_grounded && !m_quickTurning)
+        {
+            float runCycle = Mathf.Repeat(m_animator.GetCurrentAnimatorStateInfo(0).normalizedTime + m_RunCycleLegOffset, 1);
+            m_jumpLeg = (runCycle < 0.5f ? 1 : -1) * m_forward;
+            m_animator.SetFloat("JumpLeg", m_jumpLeg);
+        }
 
         m_animator.SetBool("Grounded", m_grounded);
         m_animator.SetBool("Jumping", m_jumping);
         m_animator.SetBool("Crouching", m_crouching);
         m_animator.SetBool("LedgeHang", m_ledgeGrab);
+        m_animator.SetBool("LedgeClimb", m_ledgeClimb);
+        m_animator.SetBool("QuickTurn", m_quickTurn);
     }
 
     private void OnAnimatorMove()
@@ -438,6 +442,8 @@ public class AkaiController : MonoBehaviour
     {
         m_facingDirection = true;
 
+        dir = Vector3.ProjectOnPlane(dir, Vector3.up).normalized;
+
         float facingDir = Vector3.Dot(transform.forward, dir);
 
         Quaternion tarRot = Quaternion.LookRotation(dir, transform.up);
@@ -481,13 +487,15 @@ public class AkaiController : MonoBehaviour
 
     private IEnumerator QuickTurning (Quaternion startRot, Quaternion tarRot)
     {
+        m_quickTurn = false;
         m_quickTurning = true;
         m_headLook = false;
 
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
-
+        
         float ang = Quaternion.Angle(startRot, tarRot);        
-        if (animState.IsName("QuickTurnAroundRightFoot"))
+        //if (animState.IsName("QuickTurnAroundRightFoot"))
+        if (m_jumpLeg > 0.0f)
         {
             ang = ang - 360.0f;
         }
@@ -499,17 +507,23 @@ public class AkaiController : MonoBehaviour
             animState = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
         }
-
+        
         transform.rotation = tarRot;
 
         m_quickTurning = false;
         m_headLook = true;
+        
         yield return null;
     }
 
     private void GroundCheck ()
     {
         if (m_jumping || m_ledgeGrab || m_ledgeClimbing || m_ledgeClimb)
+        {
+            return;
+        }
+
+        if (!m_grounded && m_rigidBody.velocity.y > 0.0f)
         {
             return;
         }
@@ -569,7 +583,7 @@ public class AkaiController : MonoBehaviour
         {
             move *= 2.0f;
         }
-
+        
         //Rotate move relative to camera rig
         Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
         Quaternion rot = Quaternion.Euler(0.0f, m_camera.transform.rotation.eulerAngles.y - transform.rotation.eulerAngles.y, 0.0f);
@@ -582,13 +596,20 @@ public class AkaiController : MonoBehaviour
         
         m_forward = m_move.y;
         m_turn = m_move.x;
-                
+
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
+
+        if (move.y < -1.5f && !m_quickTurning && m_grounded)  // Want quick turn
+        {
+            m_quickTurn = true;
+            m_move = move;
+        }
+
         if ((animState.IsName("Normal Locomotion Blend Tree") || animState.IsName("Crouching Locomotion Blend Tree")) && !m_quickTurning)
         {
             ApplyRotation();
         }
-        else if (animState.IsName("QuickTurnAroundLeftFoot") || animState.IsName("QuickTurnAroundRightFoot"))
+        else if (((animState.IsName("QuickTurnAroundLeftFoot") || animState.IsName("QuickTurnAroundRightFoot"))))
         {
             QuickTurn();            
         }
@@ -638,7 +659,7 @@ public class AkaiController : MonoBehaviour
         m_rigidBody.AddForce(Vector3.up * 400.0f, ForceMode.Impulse);
 
         // Wait for jump to start
-        while (!animState.IsName("Left Leg Jump Blend Tree") && !animState.IsName("Right Leg Jump Blend Tree"))
+        while (!animState.IsName("Jump Blend Tree"))
         {
             //Debug.Log("1");
             animState = m_animator.GetCurrentAnimatorStateInfo(0);
@@ -646,7 +667,7 @@ public class AkaiController : MonoBehaviour
         }
 
         // Wait for jump to end
-        while ((animState.IsName("Left Leg Jump Blend Tree") || animState.IsName("Right Leg Jump Blend Tree")) && animState.normalizedTime < 0.99f)
+        while ((animState.IsName("Jump Blend Tree")) && animState.normalizedTime < 0.99f)
         {
             //Debug.Log("2");
             animState = m_animator.GetCurrentAnimatorStateInfo(0);
@@ -683,6 +704,11 @@ public class AkaiController : MonoBehaviour
         return m_groundAt;
     }
     
+    public bool IsCrouching ()
+    {
+        return m_crouching;
+    }
+
     public void SetSink (float sink)
     {
         m_sink = Mathf.Clamp(sink, -0.45f, 0.45f);
