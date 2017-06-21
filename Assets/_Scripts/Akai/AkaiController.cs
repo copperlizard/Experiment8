@@ -18,6 +18,7 @@ public class AkaiController : MonoBehaviour
     private AkaiFootFallIK m_footFallIK;
 
     private Rigidbody m_rigidBody;
+    private CapsuleCollider m_characterCollider;
 
     private RaycastHit m_groundAt, m_leftHandLedgeGrab, m_rightHandLedgeGrab; //handgrabs for logic not anim.IK
 
@@ -27,7 +28,7 @@ public class AkaiController : MonoBehaviour
 
     private Vector2 m_move = Vector2.zero;
 
-    private float m_forward, m_turn, m_forwardIncline, m_jumpLeg = 0.0f, m_lookWeight = 1.0f, m_sink;
+    private float m_forward, m_turn, m_forwardIncline, m_jumpLeg = 0.0f, m_lookWeight = 1.0f, m_sink, m_facingWall;
 
     private bool m_grounded = true, m_jumping = false, m_jumpOnCD = false, m_crouching = false, m_quickTurn = false, m_quickTurning = false, m_headLook = true, m_facingDirection = false,
         m_touchingLevel = false, m_leftHandHoldFound = false, m_rightHandHoldFound = false, m_ledgeGrab = false, m_ledgeClimb = false, m_ledgeClimbing = false, 
@@ -58,6 +59,12 @@ public class AkaiController : MonoBehaviour
         else
         {
             m_rigidBody.freezeRotation = true;
+        }
+
+        m_characterCollider = GetComponent<CapsuleCollider>();
+        if (m_characterCollider == null)
+        {
+            Debug.Log("m_characterCollider not found!");
         }
 
         m_cameraRig = GetComponentInChildren<AkaiCameraRigController>();
@@ -282,11 +289,11 @@ public class AkaiController : MonoBehaviour
             m_wallClimb = false;
             return;
         }
-
+        
         Vector3 lerpnorm = Vector3.Lerp(m_levelContactPointA.normal, m_levelContactPointB.normal, 0.5f);
-        float facingWall = -Vector3.Dot(transform.forward, lerpnorm);
-
-        if (facingWall < 0.5f) // not facing wall enough
+        m_facingWall = -Vector3.Dot(transform.forward, lerpnorm);
+        
+        if (m_facingWall < 0.5f) // not facing wall enough
         {
             // Clear all interaction flags...
             m_ledgeGrab = false;
@@ -415,7 +422,9 @@ public class AkaiController : MonoBehaviour
 
             //transform.position = Vector3.Lerp(startPos, startPos + Vector3.up * 10.0f, animInfo.normalizedTime);
 
-            transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime);
+            //transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime);
+
+            transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime);
 
             //transform.position = new Vector3(Mathf.Lerp(startPos.x, climbTo.x, animInfo.normalizedTime * animInfo.normalizedTime), Mathf.Lerp(startPos.y, climbTo.y, animInfo.normalizedTime), Mathf.Lerp(startPos.z, climbTo.z, animInfo.normalizedTime * animInfo.normalizedTime));
 
@@ -475,7 +484,7 @@ public class AkaiController : MonoBehaviour
 
     private void QuickTurn ()
     {
-        if (!m_quickTurning && !m_facingDirection) //probably unecessary to check m_facingDirection
+        if (!m_quickTurning /*&& !m_facingDirection*/) //probably unecessary to check m_facingDirection
         {
             Vector3 move3d = new Vector3(m_move.x, 0.0f, m_move.y);
             move3d = transform.TransformDirection(move3d);
@@ -594,17 +603,31 @@ public class AkaiController : MonoBehaviour
       
         m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
         
+        if (move.y < -1.5f && !m_quickTurning && m_grounded)  // Want quick turn
+        {
+            Vector3 p1 = m_characterCollider.center - transform.up * m_characterCollider.height * 0.25f, p2 = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
+            p1 = transform.TransformPoint(p1);
+            p2 = transform.TransformPoint(p2);
+            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, 2.0f, LayerMask.GetMask("Default")))
+            {
+                m_quickTurn = false;                
+            }
+            else
+            {
+                m_quickTurn = true;
+                m_move = move;
+            }
+        }
+
         m_forward = m_move.y;
         m_turn = m_move.x;
 
+        //NEED TO FIGURE OUT HOW TO SLOW DOWN WHEN RUNNING INTO STUFF
+        //CAN'T USE COLLISION BECAUSE OF PUSH BACK AT SLOW SPEEDS MAKING COLLISSIONS BRIEF; NEEDS TO BE "PREDICTIVE"
+        //SHOULDN'T SLOW DOWN IF COULD DUCK!!!, 
+        //Could detect/predict auto duck here (probably need duck check in update...)???
+        
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
-
-        if (move.y < -1.5f && !m_quickTurning && m_grounded)  // Want quick turn
-        {
-            m_quickTurn = true;
-            m_move = move;
-        }
-
         if ((animState.IsName("Normal Locomotion Blend Tree") || animState.IsName("Crouching Locomotion Blend Tree")) && !m_quickTurning)
         {
             ApplyRotation();
