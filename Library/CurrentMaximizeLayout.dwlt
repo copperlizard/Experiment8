@@ -24,7 +24,7 @@ MonoBehaviour:
   m_MinSize: {x: 713, y: 492}
   m_MaxSize: {x: 18008, y: 14042}
   vertical: 0
-  controlID: 2577
+  controlID: 202
 --- !u!114 &2
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -124,7 +124,7 @@ MonoBehaviour:
   m_MinSize: {x: 202, y: 342}
   m_MaxSize: {x: 4002, y: 8042}
   vertical: 1
-  controlID: 2578
+  controlID: 90
 --- !u!114 &4
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -267,7 +267,7 @@ MonoBehaviour:
     m_ValueSerializationHelper:
     - {x: 593.60004, y: 584.2}
     - {x: 699.60004, y: 253.40002}
-    - {x: 639.60004, y: 385.2}
+    - {x: 639.60004, y: 265.2}
     - {x: 730.60004, y: 218.20001}
     - {x: 545.60004, y: 284.2}
     - {x: 645.6001, y: 190}
@@ -282,7 +282,7 @@ MonoBehaviour:
   - m_Target: {fileID: 1107328836475599968, guid: 6ad3f6d4c27e64e4bbbea96c983758a1,
       type: 2}
     m_ScrollPosition: {x: 0, y: 0}
-  - m_Target: {fileID: 1107106740784822264, guid: 6ad3f6d4c27e64e4bbbea96c983758a1,
+  - m_Target: {fileID: 1107847777291162846, guid: 6ad3f6d4c27e64e4bbbea96c983758a1,
       type: 2}
     m_ScrollPosition: {x: 0, y: 0}
   stateMachineGraph: {fileID: 0}
@@ -432,8 +432,8 @@ MonoBehaviour:
     y: 503
     width: 1028
     height: 444
-  m_MinSize: {x: 200, y: 200}
-  m_MaxSize: {x: 4000, y: 4000}
+  m_MinSize: {x: 202, y: 221}
+  m_MaxSize: {x: 4002, y: 4021}
   m_ActualView: {fileID: 2}
   m_Panes:
   - {fileID: 2}
@@ -491,7 +491,7 @@ MonoBehaviour:
   m_MinSize: {x: 234, y: 492}
   m_MaxSize: {x: 10004, y: 14042}
   vertical: 1
-  controlID: 2488
+  controlID: 139
 --- !u!114 &11
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -545,8 +545,8 @@ MonoBehaviour:
     height: 436
   m_TreeViewState:
     scrollPos: {x: 0, y: 0}
-    m_SelectedIDs: 2c2c0000
-    m_LastClickedID: 11308
+    m_SelectedIDs: d42d0000
+    m_LastClickedID: 0
     m_ExpandedIDs: dcfbffff00000000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
@@ -632,7 +632,7 @@ MonoBehaviour:
     m_ShowAllHits: 0
     m_SearchArea: 0
     m_Folders:
-    - Assets/Resources/Animation/Animations/Akai/AdvancedLocomotion
+    - Assets/Resources/Animation/Animations/Akai/AdvancedLocomotion/Climbing
   m_ViewMode: 0
   m_StartGridSize: 16
   m_LastFolders: []
@@ -643,7 +643,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 661c0000
     m_LastClickedID: 7270
-    m_ExpandedIDs: 00000000d6250000da250000dc250000e4250000e6250000ec250000f2250000042600001a260000e6260000282700002c2700002e270000ce270000d6270000f6270000d0280000ae290000e4290000
+    m_ExpandedIDs: 00000000d6250000da250000dc250000e4250000e6250000ec250000f2250000042600001a260000e6260000282700002c2700002e270000c6270000d0270000d8270000f8270000d2280000b0290000e6290000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -669,9 +669,9 @@ MonoBehaviour:
       m_ResourceFile: 
   m_AssetTreeState:
     scrollPos: {x: 0, y: 116}
-    m_SelectedIDs: 2c2c0000
+    m_SelectedIDs: d42d0000
     m_LastClickedID: 0
-    m_ExpandedIDs: 00000000d6250000da250000dc250000e4250000e6250000ec250000f2250000042600001a260000e6260000282700002c2700002e270000ce270000d6270000f6270000d0280000ae290000e4290000
+    m_ExpandedIDs: 00000000d6250000da250000dc250000e4250000e6250000ec250000f2250000042600001a260000e6260000282700002c2700002e270000c6270000d0270000d8270000f8270000d2280000b0290000e6290000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -696,8 +696,8 @@ MonoBehaviour:
       m_Icon: {fileID: 0}
       m_ResourceFile: 
   m_ListAreaState:
-    m_SelectedInstanceIDs: 2c2c0000
-    m_LastClickedInstanceID: 11308
+    m_SelectedInstanceIDs: d42d0000
+    m_LastClickedInstanceID: 11732
     m_HadKeyboardFocusLastEvent: 0
     m_ExpandedInstanceIDs: 
     m_RenameOverlay:
@@ -746,10 +746,10 @@ MonoBehaviour:
     y: 0
     width: 578
     height: 947
-  m_MinSize: {x: 277, y: 171}
-  m_MaxSize: {x: 4002, y: 8021}
+  m_MinSize: {x: 277, y: 192}
+  m_MaxSize: {x: 4002, y: 8042}
   vertical: 1
-  controlID: 2454
+  controlID: 203
 --- !u!114 &16
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -803,7 +803,7 @@ MonoBehaviour:
     y: 92
     width: 576
     height: 485
-  m_ScrollPosition: {x: 0, y: 420}
+  m_ScrollPosition: {x: 0, y: 0}
   m_InspectorMode: 0
   m_PreviewResizer:
     m_CachedPref: 100
@@ -880,8 +880,8 @@ MonoBehaviour:
     y: 506
     width: 578
     height: 441
-  m_MinSize: {x: 100, y: 100}
-  m_MaxSize: {x: 4000, y: 4000}
+  m_MinSize: {x: 102, y: 121}
+  m_MaxSize: {x: 4002, y: 4021}
   m_ActualView: {fileID: 21}
   m_Panes:
   - {fileID: 21}

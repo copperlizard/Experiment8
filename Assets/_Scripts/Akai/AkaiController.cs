@@ -100,10 +100,7 @@ public class AkaiController : MonoBehaviour
     {
         CheckForLevelInteraction();
 
-
-
-        GroundCheck();
-        
+        GroundCheck();        
     }
 
     private void UpdateAnimator()
@@ -135,7 +132,7 @@ public class AkaiController : MonoBehaviour
             return;
         }
 
-        if (m_ledgeGrab || m_ledgeClimb || m_ledgeClimbing)
+        if (m_ledgeGrab /*|| m_ledgeClimb || m_ledgeClimbing*/)
         {
             LedgeMove();
             return;
@@ -301,7 +298,7 @@ public class AkaiController : MonoBehaviour
             m_wallClimb = false;            
             return;
         }
-        else // turn to face wall
+        else if (!m_grounded) // turn to face wall
         {   
             FaceDirection(-lerpnorm);
         }
@@ -309,38 +306,73 @@ public class AkaiController : MonoBehaviour
         m_leftHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)), -transform.up, out m_leftHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
         m_rightHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.4f)), -transform.up, out m_rightHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
 
-        // ledge grab check
-        if (m_leftHandHoldFound && m_rightHandHoldFound) // requires two hands (maybe wallclimb doesn't...)
+        // ledge grab check        
+        if (!m_ledgeGrab && !m_ledgeClimbing || (!m_rightHandHoldFound || !m_leftHandHoldFound))
         {
-            if (Mathf.Abs(m_leftHandLedgeGrab.point.y - m_rightHandLedgeGrab.point.y) < 0.3f) // make sure ledge not too slanted
+            if (m_leftHandHoldFound && m_rightHandHoldFound) // requires two hands (maybe wallclimb doesn't...)
             {
-                //Debug.Log("checking ledge grab!");
+                if (Mathf.Abs(m_leftHandLedgeGrab.point.y - m_rightHandLedgeGrab.point.y) < 0.3f) // make sure ledge not too slanted
+                {   
+                    float avgY = (m_leftHandLedgeGrab.point.y + m_rightHandLedgeGrab.point.y) / 2.0f;
 
-                float avgY = (m_leftHandLedgeGrab.point.y + m_rightHandLedgeGrab.point.y) / 2.0f;
-
-                //Debug.Log("avgY == " + avgY.ToString() + " ; transform.position.y + m_characterHeight == " + (transform.position.y + m_characterHeight).ToString());
-
-                if (avgY < transform.position.y + m_characterHeight - 0.15f)
-                {
-                    //Debug.Log("character too high!");
-                    m_ledgeGrab = false;
-                }
-                else if (avgY > transform.position.y + m_characterHeight + 0.15f)
-                {
-                    //Debug.Log("character too low!");
-                    m_ledgeGrab = false;
-                }
-                else if (m_move.y >= -0.75f)
-                {
-                    Debug.Log("grab ledge!");
-                    m_ledgeGrab = true;
+                    if (avgY < transform.position.y + m_characterHeight - 0.15f)
+                    {
+                        m_ledgeGrab = false;
+                    }
+                    else if (avgY > transform.position.y + m_characterHeight + 0.15f)
+                    {
+                        m_ledgeGrab = false;
+                    }
+                    else if (m_move.y >= -0.75f)
+                    {
+                        Debug.Log("grab ledge!");
+                        m_ledgeGrab = true;
+                        /*if (!m_ledgeGrabbed)
+                        {
+                            StartCoroutine(LedgeGrabbed());
+                        }*/
+                    }
                 }
             }
+            else
+            {
+                m_ledgeGrab = false; //missing a hand hold
+            }
         }
+
+        
     }
+
+    /*private IEnumerator LedgeGrabbed ()
+    {
+        AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
+        while (m_ledgeGrab && !animState.IsName("LedgeHang Blend Tree"))
+        {
+            animState = m_animator.GetCurrentAnimatorStateInfo(0);
+            yield return null;
+        }
+
+        if (animState.IsName("LedgeHang Blend Tree"))
+        {
+            Debug.Log("ledge grabbed!");
+            m_ledgeGrabbed = true;
+        }
+        else
+        {
+            m_ledgeGrabbed = false;
+        }
+
+        yield return null;
+    }*/
 
     private void LedgeMove () //called by OnAnimatorMove()...
     {
+        AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
+        if (!animState.IsName("LedgeHang Blend Tree"))
+        {
+            return;
+        }
+        
         if (m_rigidBody.useGravity)
         {
             m_rigidBody.useGravity = false;
@@ -356,13 +388,12 @@ public class AkaiController : MonoBehaviour
         
         if (m_move.y > 0.75f)
         {
-            //m_ledgeGrab = false;
             m_ledgeClimb = true;
-            m_ledgeGrab = false;
+            //m_ledgeGrab = false;
         }
         else if (m_move.y < -0.75f)
         {
-            m_ledgeGrab = false;
+            m_ledgeGrab = false;            
             m_rigidBody.useGravity = true;
         }
         
@@ -375,11 +406,6 @@ public class AkaiController : MonoBehaviour
         m_rigidBody.velocity = Vector3.zero;
 
         transform.position = Vector3.Lerp(transform.position, Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f) + transform.rotation * new Vector3(0.0f, -1.675f, -0.425f) + transform.right * m_turn, 3.0f * Time.deltaTime);
-
-        if (m_move.y > 0.75 || m_move.y < -0.75)
-        {
-            m_ledgeGrab = false;
-        }
     }    
 
     private void LedgeClimb ()
@@ -391,14 +417,15 @@ public class AkaiController : MonoBehaviour
     }
 
     private IEnumerator ClimbingLedge ()
-    {
-        m_ledgeClimbing = true;
-        
-        if (!m_leftHandHoldFound || !m_rightHandHoldFound)
+    {   
+        if ((!m_leftHandHoldFound || !m_rightHandHoldFound) || !m_ledgeGrab)
         {
             m_ledgeClimbing = false;
             yield break;
         }
+        
+        m_ledgeClimbing = true;
+        m_ledgeGrab = false;
 
         Vector3 midHand = Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f);
         Vector3 climbTo = transform.position + transform.forward * 0.425f;
@@ -432,9 +459,9 @@ public class AkaiController : MonoBehaviour
             yield return null;
         } while (animInfo.normalizedTime < 0.999 && animInfo.IsName("LedgeClimb State"));
         
-        m_ledgeGrab = false;
+        m_ledgeGrab = false;        
         m_ledgeClimb = false;
-        m_ledgeClimbing = false;
+        m_ledgeClimbing = false;        
         m_grounded = true;
         yield return null;
     }
@@ -592,23 +619,27 @@ public class AkaiController : MonoBehaviour
         {
             move *= 2.0f;
         }
-        
+
         //Rotate move relative to camera rig
         Vector3 move3d = new Vector3(move.x, 0.0f, move.y);
         Quaternion rot = Quaternion.Euler(0.0f, m_camera.transform.rotation.eulerAngles.y - transform.rotation.eulerAngles.y, 0.0f);
         move3d = rot * move3d;
-        
+
         move.x = move3d.x;
         move.y = move3d.z;
-      
+
         m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
-        
+
+        // Check for clear path (to adjust move input only; not level interactions)
+        Vector3 p1 = m_characterCollider.center - transform.up * m_characterCollider.height * 0.25f, p2 = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
+        p1 = transform.TransformPoint(p1);
+        p2 = transform.TransformPoint(p2);
+        RaycastHit pathHit;
+        bool pathClear = !Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, out pathHit, 2.0f, LayerMask.GetMask("Default"));
+                
         if (move.y < -1.5f && !m_quickTurning && m_grounded)  // Want quick turn
-        {
-            Vector3 p1 = m_characterCollider.center - transform.up * m_characterCollider.height * 0.25f, p2 = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
-            p1 = transform.TransformPoint(p1);
-            p2 = transform.TransformPoint(p2);
-            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, 2.0f, LayerMask.GetMask("Default")))
+        {            
+            if (!pathClear && Vector3.Dot(pathHit.normal, Vector3.up) < 0.5f)
             {
                 m_quickTurn = false;                
             }
@@ -622,10 +653,14 @@ public class AkaiController : MonoBehaviour
         m_forward = m_move.y;
         m_turn = m_move.x;
 
-        //NEED TO FIGURE OUT HOW TO SLOW DOWN WHEN RUNNING INTO STUFF
-        //CAN'T USE COLLISION BECAUSE OF PUSH BACK AT SLOW SPEEDS MAKING COLLISSIONS BRIEF; NEEDS TO BE "PREDICTIVE"
-        //SHOULDN'T SLOW DOWN IF COULD DUCK!!!, 
-        //Could detect/predict auto duck here (probably need duck check in update...)???
+        if (!pathClear && m_forward > 0.0f)
+        {
+            Vector2 a = new Vector2(transform.position.x, transform.position.z), b = new Vector2(pathHit.point.x, pathHit.point.z);
+
+            float d = Vector2.Distance(a, b);
+
+            m_forward *= Mathf.SmoothStep(0.0f, 1.0f, Mathf.Min(1.0f, d / 2.0f));
+        }
         
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
         if ((animState.IsName("Normal Locomotion Blend Tree") || animState.IsName("Crouching Locomotion Blend Tree")) && !m_quickTurning)
@@ -673,7 +708,8 @@ public class AkaiController : MonoBehaviour
         m_jumpOnCD = true;
 
         m_rigidBody.useGravity = true;
-        Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 200.0f);
+        //Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 200.0f);
+        Vector3 push = transform.TransformDirection(new Vector3(m_turn, 0.0f, m_forward) * 200.0f);
         if (!m_touchingLevel)
         {
             m_rigidBody.AddForce(push, ForceMode.Impulse);
