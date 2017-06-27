@@ -18,13 +18,14 @@ public class AkaiController : MonoBehaviour
     private AkaiFootFallIK m_footFallIK;
 
     private Rigidbody m_rigidBody;
-    private CapsuleCollider m_characterCollider;
+    private CapsuleCollider m_characterCollider, m_projectedCollider = null;
+    private GameObject m_projectedCharacter = null;
 
     private RaycastHit m_groundAt, m_leftHandLedgeGrab, m_rightHandLedgeGrab; //handgrabs for logic not anim.IK
 
     //private Quaternion m_QuickTurnStartRot;
 
-    private ContactPoint m_levelContactPointA = new ContactPoint(), m_levelContactPointB = new ContactPoint(); //NEED TO STOP USING CONTACT POINTS!!!
+    private ContactPoint m_levelContactPointA = new ContactPoint(), m_levelContactPointB = new ContactPoint(); 
 
     private Vector2 m_move = Vector2.zero;
 
@@ -67,6 +68,13 @@ public class AkaiController : MonoBehaviour
             Debug.Log("m_characterCollider not found!");
         }
 
+        m_projectedCharacter = new GameObject();
+        m_projectedCollider = m_projectedCharacter.AddComponent<CapsuleCollider>();
+        m_projectedCollider.center = m_characterCollider.center;
+        m_projectedCollider.radius = m_characterCollider.radius;
+        m_projectedCollider.height = m_characterCollider.height;
+        m_projectedCharacter.AddComponent<AkaiProjectedCollisionDetector>();
+
         m_cameraRig = GetComponentInChildren<AkaiCameraRigController>();
         if (m_cameraRig == null)
         {
@@ -100,7 +108,7 @@ public class AkaiController : MonoBehaviour
     {
         CheckForLevelInteraction();
 
-        GroundCheck();        
+        GroundCheck();
     }
 
     private void UpdateAnimator()
@@ -163,7 +171,12 @@ public class AkaiController : MonoBehaviour
         {
             if (m_grounded)
             {
-                transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+                if (Vector3.Distance(transform.TransformPoint(m_characterCollider.center), collision.contacts[0].point) < m_characterCollider.radius)
+                {
+                    transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+                }
+
+                //transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
             }
             else
             {
@@ -171,10 +184,18 @@ public class AkaiController : MonoBehaviour
                 m_rigidBody.velocity = new Vector3(m_rigidBody.velocity.x * (1.0f - ang), m_rigidBody.velocity.y, m_rigidBody.velocity.z * (1.0f - ang));
             }
 
+            /*if (!m_grounded)
+            {
+                float ang = Mathf.Max(Vector3.Dot(m_rigidBody.velocity, -collision.contacts[0].normal), 0.0f);
+                m_rigidBody.velocity = new Vector3(m_rigidBody.velocity.x * (1.0f - ang), m_rigidBody.velocity.y, m_rigidBody.velocity.z * (1.0f - ang));
+            }*/
+
             m_levelContactPointA = collision.contacts[0];
             m_levelContactPointB = collision.contacts[collision.contacts.Length - 1];
 
             m_touchingLevel = true;
+
+            Debug.Log("boop");
 
             //CheckForLevelInteraction();
         }
@@ -186,7 +207,12 @@ public class AkaiController : MonoBehaviour
         {
             if (m_grounded)
             {
-                transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+                if (Vector3.Distance(transform.TransformPoint(m_characterCollider.center), collision.contacts[0].point) < m_characterCollider.radius)
+                {
+                    transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+                }
+
+                //transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
             }
 
             m_levelContactPointA = collision.contacts[0];
@@ -212,7 +238,7 @@ public class AkaiController : MonoBehaviour
             m_levelContactPointB = new ContactPoint();
 
             m_touchingLevel = false;
-            CheckForLevelInteraction(); //clear interaction flags
+            //CheckForLevelInteraction(); //clear interaction flags
         }
     }
 
@@ -262,18 +288,35 @@ public class AkaiController : MonoBehaviour
 
     #region MovementFunctions
 
-    private void CheckForLevelInteraction (bool goingtoTouch = false)
+    private void CheckForLevelInteraction () //called in fixedupdate loop and by Move() when collision predicited
     {
-        // ADD "FENCE HOP" LATER!!!
-        // ADD "FENCE HOP" LATER!!!
-        // ADD "FENCE HOP" LATER!!!
-        // ADD "FENCE HOP" LATER!!!
-        // ADD "FENCE HOP" LATER!!!
-        // ADD "FENCE HOP" LATER!!!
-        
         if (m_ledgeGrab || m_ledgeClimbing || m_ledgeClimb) // ledge grab ended by ledge move...
         {
             return;
+        }
+        
+        bool goingtoTouch = false;
+        if (!m_touchingLevel) // predict level touch (touching set in collision events)...
+        {
+            Vector3 p1 = m_characterCollider.center - transform.up * m_characterCollider.height * 0.5f, p2 = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
+            p1 = transform.TransformPoint(p1);
+            p2 = transform.TransformPoint(p2);
+            RaycastHit hit;
+
+            //Debug.Log("WTF?2");
+
+            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, out hit, 0.3f, LayerMask.GetMask("Default")))
+            {
+                //m_projectedCharacter.transform.position = transform.TransformPoint(m_characterCollider.center + new Vector3(0.0f, 0.0f, hit.distance)); //projected collider now touching level
+                m_projectedCharacter.transform.position = transform.position + transform.forward * hit.distance;
+                m_projectedCharacter.transform.rotation = transform.rotation;
+                goingtoTouch = true;
+            }
+            else
+            {
+                m_projectedCharacter.transform.position = transform.position;
+                m_projectedCharacter.transform.rotation = transform.rotation;
+            }
         }
 
         if (!m_touchingLevel && !goingtoTouch)
@@ -285,23 +328,6 @@ public class AkaiController : MonoBehaviour
             m_wallRun = false;
             m_wallClimb = false;
             return;
-        }
-        
-        if (goingtoTouch) // predict level hits...
-        {
-            Vector3 p1 = m_characterCollider.center - transform.up * m_characterCollider.height * 0.25f, p2 = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
-            p1 = transform.TransformPoint(p1);
-            p2 = transform.TransformPoint(p2);
-            RaycastHit[] hits = Physics.CapsuleCastAll(p1, p2, m_characterCollider.radius, transform.forward, 0.3f, LayerMask.GetMask("Default"));
-            if (hits.Length > 0)
-            {
-                // NEED TO STOP USING CONTACT POINTS!!!
-                // NEED TO STOP USING CONTACT POINTS!!!
-                // NEED TO STOP USING CONTACT POINTS!!!
-                // NEED TO STOP USING CONTACT POINTS!!!
-                // NEED TO STOP USING CONTACT POINTS!!!
-                // NEED TO STOP USING CONTACT POINTS!!!
-            }
         }
                 
         Vector3 lerpnorm = Vector3.Lerp(m_levelContactPointA.normal, m_levelContactPointB.normal, 0.5f);
@@ -322,7 +348,6 @@ public class AkaiController : MonoBehaviour
 
         m_leftHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)), -transform.up, out m_leftHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
         m_rightHandHoldFound = Physics.Raycast(transform.position + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.4f)), -transform.up, out m_rightHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
-
         //Debug.Log("m_leftHandHoldFound == " + m_leftHandHoldFound.ToString() + " ; m_rightHandHoldFound == " + m_rightHandHoldFound.ToString());
 
         // ledge grab check        
@@ -352,7 +377,13 @@ public class AkaiController : MonoBehaviour
         else if (!m_leftHandHoldFound || !m_rightHandHoldFound)
         {
             m_ledgeGrab = false; //missing a hand hold
-        }        
+        } 
+        
+        // wall run check
+
+        // wall climb
+
+        // fence hop check
     }
     
     private void LedgeMove () //called by OnAnimatorMove()...
@@ -620,12 +651,10 @@ public class AkaiController : MonoBehaviour
         m_move = Vector2.Lerp(m_move, move, 10.0f * Time.deltaTime);
         
         // Check for clear path (to adjust move input only; not level interactions)
-        Vector3 p1 = m_characterCollider.center - transform.up * m_characterCollider.height * 0.25f, p2 = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
-        p1 = transform.TransformPoint(p1);
-        p2 = transform.TransformPoint(p2);
+        Vector3 sC = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
+        sC = transform.TransformPoint(sC);
         RaycastHit pathHit;
-        //bool pathClear = !Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, out pathHit, 2.0f, LayerMask.GetMask("Default"));
-        bool pathClear = !Physics.SphereCast(p2, m_characterCollider.radius, transform.forward, out pathHit, 2.0f, LayerMask.GetMask("Default"));
+        bool pathClear = !Physics.SphereCast(sC, m_characterCollider.radius, transform.forward, out pathHit, 2.0f, LayerMask.GetMask("Default"));
                 
         if (move.y < -1.5f && !m_quickTurning && m_grounded)  // Want quick turn
         {            
@@ -642,21 +671,24 @@ public class AkaiController : MonoBehaviour
 
         m_forward = m_move.y;
         m_turn = m_move.x;
-
-        //NOT GOOD ENOUGH!!! CAN'T RUN UP STAIRS
+        
+        //NOT GOOD ENOUGH!!! CAN'T RUN UP STAIRS  UPDATE: CAN WITH SHPERECAST INSTEAD OF CAPSULECAST...
         if (!pathClear && m_forward > 0.0f) 
         {
+            //Debug.Log("path blocked!");
+
             Vector2 a = new Vector2(transform.position.x, transform.position.z), b = new Vector2(pathHit.point.x, pathHit.point.z);
 
             float d = Vector2.Distance(a, b);
             
             float n1 = 0.8f, n2 = 1.0f;
-            float c = Mathf.Clamp((Vector3.Dot(-transform.forward, pathHit.normal) - n1) / (n2 - n1), 0.0f, 1.0f); 
+            float c = Mathf.Clamp((Vector3.Dot(-transform.forward, pathHit.normal) - n1) / (n2 - n1), 0.0f, 1.0f);
             
+            //Debug.Log("c == " + c.ToString());
+
             m_forward *= Mathf.Lerp(1.0f, Mathf.SmoothStep(0.0f, 1.0f, Mathf.Min(1.0f, d / 2.0f)), c);
-                          
-            CheckForLevelInteraction(true);            
         }
+        
         
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
         if ((animState.IsName("Normal Locomotion Blend Tree") || animState.IsName("Crouching Locomotion Blend Tree")) && !m_quickTurning)

@@ -127,6 +127,7 @@
     <Compile Include="Assets\_Scripts\Akai\AkaiController.cs" />
     <Compile Include="Assets\_Scripts\Akai\AkaiControllerInput.cs" />
     <Compile Include="Assets\_Scripts\Akai\AkaiFootFallIK.cs" />
+    <Compile Include="Assets\_Scripts\Akai\AkaiProjectedCollisionDetector.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Resources\Standard Assets\Effects\GlassRefraction\Shaders\GlassStainedBumpDistort.shader" />
