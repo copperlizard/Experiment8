@@ -285,7 +285,7 @@ MonoBehaviour:
   m_MinSize: {x: 277, y: 192}
   m_MaxSize: {x: 4002, y: 8042}
   vertical: 1
-  controlID: 166
+  controlID: 145
 --- !u!114 &13
 MonoBehaviour:
   m_ObjectHideFlags: 52
@@ -446,9 +446,9 @@ MonoBehaviour:
   m_isRotationLocked: 0
   m_AudioPlay: 0
   m_Position:
-    m_Target: {x: 12.7126465, y: -4.845703, z: 13.894531}
+    m_Target: {x: 13.370117, y: -4.25, z: 13.724609}
     speed: 2
-    m_Value: {x: 12.7126465, y: -4.845703, z: 13.894531}
+    m_Value: {x: 13.370117, y: -4.25, z: 13.724609}
   m_RenderMode: 0
   m_ValidateTrueMetals: 0
   m_SceneViewState:
@@ -473,11 +473,11 @@ MonoBehaviour:
   m_Rotation:
     m_Target: {x: -0.2812888, y: -0.069017775, z: 0.020287868, w: -0.9569234}
     speed: 2
-    m_Value: {x: -0.28128865, y: -0.069017746, z: 0.020287858, w: -0.95692295}
+    m_Value: {x: -0.2812888, y: -0.069017775, z: 0.020287868, w: -0.9569234}
   m_Size:
-    m_Target: 14.394729
+    m_Target: 23.54816
     speed: 2
-    m_Value: 14.394729
+    m_Value: 23.54816
   m_Ortho:
     m_Target: 1
     speed: 2
@@ -732,9 +732,9 @@ MonoBehaviour:
     height: 436
   m_TreeViewState:
     scrollPos: {x: 0, y: 0}
-    m_SelectedIDs: 2e2c0000
-    m_LastClickedID: 11310
-    m_ExpandedIDs: dcfbffff00000000162c0000
+    m_SelectedIDs: 322c0000
+    m_LastClickedID: 11314
+    m_ExpandedIDs: dcfbffff00000000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -804,7 +804,7 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 661c0000
     m_LastClickedID: 7270
-    m_ExpandedIDs: 00000000d6250000da250000dc250000e4250000e6250000ec250000f2250000042600001a260000e6260000282700002c2700002e270000d0270000d8270000f8270000d2280000b0290000e6290000
+    m_ExpandedIDs: 00000000d8250000dc250000de250000e6250000e8250000ee250000f4250000062600001c26000032260000e82600002e27000030270000d2270000da270000fa270000d4280000b2290000e8290000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
       m_Name: 
@@ -832,21 +832,21 @@ MonoBehaviour:
     scrollPos: {x: 0, y: 0}
     m_SelectedIDs: 
     m_LastClickedID: 0
-    m_ExpandedIDs: 00000000d6250000da250000dc250000e4250000e6250000ec250000f2250000042600001a26000030260000e62600002c2700002e270000d0270000d8270000f8270000d2280000b0290000e6290000
+    m_ExpandedIDs: 00000000d8250000dc250000de250000e6250000e8250000ee250000f4250000062600001c26000032260000e82600002e27000030270000d2270000da270000fa270000d4280000b2290000e8290000
     m_RenameOverlay:
       m_UserAcceptedRename: 0
-      m_Name: AkaiProjectedCollisionDetector
-      m_OriginalName: AkaiProjectedCollisionDetector
+      m_Name: 
+      m_OriginalName: 
       m_EditFieldRect:
         serializedVersion: 2
         x: 0
         y: 0
         width: 0
         height: 0
-      m_UserData: 23414
+      m_UserData: 0
       m_IsWaitingForDelay: 0
       m_IsRenaming: 0
-      m_OriginalEventType: 0
+      m_OriginalEventType: 11
       m_IsRenamingFilename: 1
       m_ClientGUIView: {fileID: 11}
     m_SearchString: 
@@ -902,7 +902,7 @@ MonoBehaviour:
   m_MinSize: {x: 275, y: 50}
   m_MaxSize: {x: 4000, y: 4000}
   m_TitleContent:
-    m_Text: Inspector
+    m_Text: Debug
     m_Image: {fileID: -6905738622615590433, guid: 0000000000000000d000000000000000,
       type: 0}
     m_Tooltip: 
@@ -913,8 +913,8 @@ MonoBehaviour:
     y: 92
     width: 576
     height: 485
-  m_ScrollPosition: {x: 0, y: 0}
-  m_InspectorMode: 0
+  m_ScrollPosition: {x: 0, y: 1127.9551}
+  m_InspectorMode: 1
   m_PreviewResizer:
     m_CachedPref: 100
     m_ControlHash: -371814159

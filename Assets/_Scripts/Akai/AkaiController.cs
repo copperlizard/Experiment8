@@ -20,6 +20,7 @@ public class AkaiController : MonoBehaviour
     private Rigidbody m_rigidBody;
     private CapsuleCollider m_characterCollider, m_projectedCollider = null;
     private GameObject m_projectedCharacter = null;
+    private AkaiProjectedCollisionDetector m_projectedCollisionDetector = null;
 
     private RaycastHit m_groundAt, m_leftHandLedgeGrab, m_rightHandLedgeGrab; //handgrabs for logic not anim.IK
 
@@ -69,11 +70,14 @@ public class AkaiController : MonoBehaviour
         }
 
         m_projectedCharacter = new GameObject();
+        m_projectedCharacter.transform.position = transform.position;
+        m_projectedCharacter.transform.rotation = transform.rotation;
         m_projectedCollider = m_projectedCharacter.AddComponent<CapsuleCollider>();
         m_projectedCollider.center = m_characterCollider.center;
         m_projectedCollider.radius = m_characterCollider.radius;
         m_projectedCollider.height = m_characterCollider.height;
         m_projectedCharacter.AddComponent<AkaiProjectedCollisionDetector>();
+        m_projectedCollisionDetector = m_projectedCharacter.GetComponent<AkaiProjectedCollisionDetector>();
 
         m_cameraRig = GetComponentInChildren<AkaiCameraRigController>();
         if (m_cameraRig == null)
@@ -195,7 +199,7 @@ public class AkaiController : MonoBehaviour
 
             m_touchingLevel = true;
 
-            Debug.Log("boop");
+            //Debug.Log("collided with " + collision.gameObject.name);
 
             //CheckForLevelInteraction();
         }
@@ -305,17 +309,22 @@ public class AkaiController : MonoBehaviour
 
             //Debug.Log("WTF?2");
 
-            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, out hit, 0.3f, LayerMask.GetMask("Default")))
+            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, transform.forward, out hit, 0.3f, LayerMask.GetMask("Default")) && !m_touchingLevel)
             {
                 //m_projectedCharacter.transform.position = transform.TransformPoint(m_characterCollider.center + new Vector3(0.0f, 0.0f, hit.distance)); //projected collider now touching level
                 m_projectedCharacter.transform.position = transform.position + transform.forward * hit.distance;
                 m_projectedCharacter.transform.rotation = transform.rotation;
                 goingtoTouch = true;
+                m_levelContactPointA = m_projectedCollisionDetector.GetLevelContactPointA();
+                m_levelContactPointB = m_projectedCollisionDetector.GetLevelContactPointB();                
             }
             else
             {
                 m_projectedCharacter.transform.position = transform.position;
                 m_projectedCharacter.transform.rotation = transform.rotation;
+
+                m_levelContactPointA = new ContactPoint();
+                m_levelContactPointB = new ContactPoint();
             }
         }
 
