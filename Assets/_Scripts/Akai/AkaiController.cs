@@ -144,7 +144,7 @@ public class AkaiController : MonoBehaviour
             return;
         }
 
-        if (m_ledgeGrab /*|| m_ledgeClimb || m_ledgeClimbing*/)
+        if (m_ledgeGrab || m_ledgeClimb || m_ledgeClimbing)
         {
             LedgeMove();
             return;
@@ -154,33 +154,33 @@ public class AkaiController : MonoBehaviour
 
         if (m_rigidBody.useGravity)
         {
-            // preserve the existing y part of the current velocity.
-            //v.y = m_rigidBody.velocity.y;
+            // preserve velocity
             v = m_rigidBody.velocity;            
         }
 
-        m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, 8.0f * Time.deltaTime);        
+        const float _velocityLerpRate = 8.0f;
+        m_rigidBody.velocity = Vector3.Lerp(m_rigidBody.velocity, v, _velocityLerpRate * Time.deltaTime);        
     }
 
     private void OnAnimatorIK(int layerIndex)
     {
-        m_lookWeight = (m_headLook) ? Mathf.Lerp(m_lookWeight, 1.0f, 3.0f * Time.deltaTime) : Mathf.Lerp(m_lookWeight, 0.0f, 30.0f * Time.deltaTime);
+        const float _headStartLookLerpRate = 3.0f, _headStopLookLerpRate = 30.0f, _headLookTarDist = 10.0f;
+        m_lookWeight = (m_headLook) ? Mathf.Lerp(m_lookWeight, 1.0f, _headStartLookLerpRate * Time.deltaTime) : Mathf.Lerp(m_lookWeight, 0.0f, _headStopLookLerpRate * Time.deltaTime);
         m_animator.SetLookAtWeight(m_lookWeight);
-        m_animator.SetLookAtPosition(m_cameraBoom.transform.position + m_cameraBoom.transform.forward * 10.0f);
+        m_animator.SetLookAtPosition(m_cameraBoom.transform.position + m_cameraBoom.transform.forward * _headLookTarDist);
     }
         
     private void OnCollisionEnter(Collision collision)
     {
+        const float _pushBackDist = 0.1f, _pushBackLerpRate = 3.0f;
         if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
         {
             if (m_grounded)
             {
                 if (Vector3.Distance(transform.TransformPoint(m_characterCollider.center), collision.contacts[0].point) < m_characterCollider.radius)
                 {
-                    transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+                    transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * _pushBackDist, _pushBackLerpRate * Time.deltaTime);
                 }
-
-                //transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
             }
             else
             {
@@ -198,33 +198,26 @@ public class AkaiController : MonoBehaviour
             m_levelContactPointB = collision.contacts[collision.contacts.Length - 1];
 
             m_touchingLevel = true;
-
-            //Debug.Log("collided with " + collision.gameObject.name);
-
-            //CheckForLevelInteraction();
         }
     }
 
     private void OnCollisionStay(Collision collision)
     {
+        const float _pushBackDist = 0.1f, _pushBackLerpRate = 3.0f;
         if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
         {
             if (m_grounded)
             {
                 if (Vector3.Distance(transform.TransformPoint(m_characterCollider.center), collision.contacts[0].point) < m_characterCollider.radius)
                 {
-                    transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
+                    transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * _pushBackDist, _pushBackLerpRate * Time.deltaTime);
                 }
-
-                //transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * 0.1f, 3.0f * Time.deltaTime);
             }
 
             m_levelContactPointA = collision.contacts[0];
             m_levelContactPointB = collision.contacts[collision.contacts.Length - 1];
 
             m_touchingLevel = true;
-
-            //CheckForLevelInteraction();
         }
     }
 
@@ -294,6 +287,7 @@ public class AkaiController : MonoBehaviour
 
     private void CheckForLevelInteraction () //called in fixedupdate loop and by Move() when collision predicited
     {
+        const float _collisionPredictionDist = 0.3f, _ledgeBelowPlayerThresh = 0.15f, _ledgeAbovePlayerThresh = 0.05f, _rejectLedgeGrabThresh = -0.75f;
         if (m_ledgeGrab || m_ledgeClimbing || m_ledgeClimb) // ledge grab ended by ledge move...
         {
             return;
@@ -317,7 +311,7 @@ public class AkaiController : MonoBehaviour
                 characterProjection = Vector3.ProjectOnPlane(m_rigidBody.velocity, transform.right); //eliminate XZ movement (maybe shouldn't...)...
             }
             
-            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, characterProjection.normalized, out hit, 0.3f, LayerMask.GetMask("Default")) && !m_touchingLevel)
+            if (Physics.CapsuleCast(p1, p2, m_characterCollider.radius, characterProjection.normalized, out hit, _collisionPredictionDist, LayerMask.GetMask("Default")) && !m_touchingLevel)
             {
                 m_projectedCharacter.transform.position = transform.position + transform.forward * hit.distance;
                 m_projectedCharacter.transform.rotation = transform.rotation;
@@ -364,36 +358,36 @@ public class AkaiController : MonoBehaviour
         }
         
         Vector3 projpoint = new Vector3(m_levelContactPointA.point.x, transform.position.y, m_levelContactPointA.point.z) - transform.forward * m_characterCollider.radius;
-
+        
         m_leftHandHoldFound = Physics.Raycast(projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)), -transform.up, out m_leftHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
         m_rightHandHoldFound = Physics.Raycast(projpoint + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.4f)), -transform.up, out m_rightHandLedgeGrab, 5.0f, LayerMask.GetMask("Default"));
 
-        Debug.DrawLine(projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)), projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)) - transform.up, Color.red, 1.0f);
-        Debug.DrawLine(projpoint + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.4f)), projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)) - transform.up, Color.red, 1.0f);
+        //Debug.DrawLine(projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)), projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)) - transform.up, Color.red, 1.0f);
+        //Debug.DrawLine(projpoint + transform.TransformVector(new Vector3(0.5f, 5.0f, 0.4f)), projpoint + transform.TransformVector(new Vector3(-0.5f, 5.0f, 0.4f)) - transform.up, Color.red, 1.0f);
         //Debug.Log("m_leftHandHoldFound == " + m_leftHandHoldFound.ToString() + " ; m_rightHandHoldFound == " + m_rightHandHoldFound.ToString());
 
         // ledge grab check        
         if (!m_ledgeGrab && !m_ledgeClimbing && (m_rightHandHoldFound && m_leftHandHoldFound) && !m_ledgeDropping)
         {            
-            if (Vector3.Distance(m_levelContactPointA.point, m_levelContactPointB.point) > 0.5f) //Make sure ledge not to "short" (no animation for hanging from or climbing up "bar")
+            if (Vector3.Distance(m_levelContactPointA.point, m_levelContactPointB.point) > 0.5f) //Make sure wall not bar (no animation for hanging from or climbing up "bar")
             {
                 if (Mathf.Abs(m_leftHandLedgeGrab.point.y - m_rightHandLedgeGrab.point.y) < 0.3f) // make sure ledge not too slanted
                 {
                     float avgY = (m_leftHandLedgeGrab.point.y + m_rightHandLedgeGrab.point.y) / 2.0f;
 
-                    if (avgY < transform.position.y + m_characterHeight - 0.15f)
+                    if (avgY < transform.position.y + m_characterHeight - _ledgeBelowPlayerThresh)
                     {
-                        //Debug.Log("ledge to low! avgY == " + avgY.ToString() + " ; character at " + (transform.position.y + m_characterHeight - 0.15f).ToString());
+                        //Debug.Log("ledge too low! avgY == " + avgY.ToString() + " ; character at " + (transform.position.y + m_characterHeight - 0.15f).ToString());
                         m_ledgeGrab = false;
                     }
-                    else if (avgY > transform.position.y + m_characterHeight + 0.05f)
+                    else if (avgY > transform.position.y + m_characterHeight + _ledgeAbovePlayerThresh)
                     {
-                        //Debug.Log("ledge to high!");
+                        //Debug.Log("ledge too high!");
                         m_ledgeGrab = false;
                     }
-                    else if (m_move.y >= -0.75f)
+                    else if (m_move.y >= _rejectLedgeGrabThresh)
                     {
-                        Debug.Log("grab ledge!");
+                        //Debug.Log("grab ledge!");
                         m_ledgeGrab = true;
                     }
                 }
@@ -413,6 +407,12 @@ public class AkaiController : MonoBehaviour
     
     private void LedgeMove () //called by OnAnimatorMove()...
     {
+        const float _climbThresh = 0.75f;
+        if (m_ledgeClimbing)
+        {
+            return;
+        }
+
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
         if (!animState.IsName("LedgeHang Blend Tree"))
         {
@@ -434,14 +434,15 @@ public class AkaiController : MonoBehaviour
                 
         Vector3 tarPos = Vector3.Lerp(transform.position, Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f) + transform.rotation * new Vector3(0.0f, -1.675f, -0.425f), 30.0f * Time.deltaTime);
 
-        if (m_move.y > 0.75f)
+        if (m_move.y > _climbThresh)
         {
             if (Vector3.Distance(transform.position, tarPos) < 0.01f)
             {
                 LedgeClimb();
+                return;
             }           
         }
-        else if (m_move.y < -0.75f)
+        else if (m_move.y < -_climbThresh)
         {
             LedgeDrop();
         }
@@ -461,9 +462,11 @@ public class AkaiController : MonoBehaviour
     }
     
     private IEnumerator ClimbingLedge ()
-    {   
+    {
+        const float _climbForward = 0.425f;
         if ((!m_leftHandHoldFound || !m_rightHandHoldFound) || !m_ledgeGrab)
         {
+            m_rigidBody.useGravity = true;
             m_ledgeClimbing = false;
             yield break;
         }
@@ -472,10 +475,8 @@ public class AkaiController : MonoBehaviour
         m_ledgeGrab = false;
 
         Vector3 midHand = Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f);
-        Vector3 climbTo = transform.position + transform.forward * 0.425f;
+        Vector3 climbTo = transform.position + transform.forward * _climbForward;
         climbTo.y = midHand.y;
-
-        //Vector3 climbTo = Vector3.Lerp(m_leftHandLedgeGrab.point, m_rightHandLedgeGrab.point, 0.5f) + transform.forward * 0.3f;
         
         AnimatorStateInfo animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
         Vector3 startPos = transform.position;
@@ -487,17 +488,22 @@ public class AkaiController : MonoBehaviour
             yield return null;
         }
 
+        //const float _startThresh = 0.55f, _endThresh = 1.0f;        
         do
         {
             Debug.DrawLine(startPos, climbTo, Color.red);
 
-            //transform.position = Vector3.Lerp(startPos, startPos + Vector3.up * 10.0f, animInfo.normalizedTime);
-
-            //transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime);
-
             transform.position = Vector3.Lerp(startPos, climbTo, animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime);
 
-            //transform.position = new Vector3(Mathf.Lerp(startPos.x, climbTo.x, animInfo.normalizedTime * animInfo.normalizedTime), Mathf.Lerp(startPos.y, climbTo.y, animInfo.normalizedTime), Mathf.Lerp(startPos.z, climbTo.z, animInfo.normalizedTime * animInfo.normalizedTime));
+            //go up for first 60%, then forwards...
+            //float t = animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime * animInfo.normalizedTime;
+            //Debug.Log("t == " + t.ToString());
+            //Vector3 tar = Vector3.Lerp(startPos, climbTo, Mathf.Clamp((t - _startThresh) / (_endThresh - _startThresh), 0.0f, 1.0f));
+
+            //startThresh = 0.0f; endThresh = 1.0f;
+            //tar.y = Mathf.Lerp(startPos.y, climbTo.y, Mathf.Clamp((t - _startThresh) / (_endThresh - _startThresh), 0.0f, 1.0f));
+
+            //transform.position = tar;
 
             animInfo = m_animator.GetCurrentAnimatorStateInfo(0);
             yield return null;
@@ -574,7 +580,7 @@ public class AkaiController : MonoBehaviour
 
     private void QuickTurn ()
     {
-        if (!m_quickTurning /*&& !m_facingDirection*/) //probably unecessary to check m_facingDirection
+        if (!m_quickTurning)
         {
             Vector3 move3d = new Vector3(m_move.x, 0.0f, m_move.y);
             move3d = transform.TransformDirection(move3d);
@@ -678,6 +684,8 @@ public class AkaiController : MonoBehaviour
 
     public void Move (Vector2 move, bool fast)
     {
+        const float _pathCheckDist = 2.0f;
+
         if (fast)
         {
             move *= 2.0f;
@@ -697,7 +705,7 @@ public class AkaiController : MonoBehaviour
         Vector3 sC = m_characterCollider.center + transform.up * m_characterCollider.height * 0.5f;
         sC = transform.TransformPoint(sC);
         RaycastHit pathHit;
-        bool pathClear = !Physics.SphereCast(sC, m_characterCollider.radius, transform.forward, out pathHit, 2.0f, LayerMask.GetMask("Default"));
+        bool pathClear = !Physics.SphereCast(sC, m_characterCollider.radius, transform.forward, out pathHit, _pathCheckDist, LayerMask.GetMask("Default"));
                 
         if (move.y < -1.5f && !m_quickTurning && m_grounded)  // Want quick turn
         {            
@@ -715,7 +723,6 @@ public class AkaiController : MonoBehaviour
         m_forward = m_move.y;
         m_turn = m_move.x;
         
-        //NOT GOOD ENOUGH!!! CAN'T RUN UP STAIRS  UPDATE: CAN WITH SHPERECAST INSTEAD OF CAPSULECAST...
         if (!pathClear && m_forward > 0.0f) 
         {
             //Debug.Log("path blocked!");
@@ -723,9 +730,6 @@ public class AkaiController : MonoBehaviour
             Vector2 twoDPos = new Vector2(transform.position.x, transform.position.z), twoDPathHit = new Vector2(pathHit.point.x, pathHit.point.z);
 
             float sepDist = Vector2.Distance(twoDPos, twoDPathHit) - m_characterCollider.radius;
-
-            //MAYBE BAD! MIGHT STOP PLAYER FROM CLIMBING!!!
-            //MAYBE BAD! MIGHT STOP PLAYER FROM CLIMBING!!!
             //MAYBE BAD! MIGHT STOP PLAYER FROM CLIMBING!!! (maybe get rid of sepDist check)...
             if (sepDist < 0.1f) 
             {
@@ -733,12 +737,12 @@ public class AkaiController : MonoBehaviour
             }
             else
             {
-                float startThresh = 0.8f, endThresh = 1.0f;
-                float c = Mathf.Clamp((Vector3.Dot(-transform.forward, pathHit.normal) - startThresh) / (endThresh - startThresh), 0.0f, 1.0f);
+                const float _startThresh = 0.8f, _endThresh = 1.0f;
+                float c = Mathf.Clamp((Vector3.Dot(-transform.forward, pathHit.normal) - _startThresh) / (_endThresh - _startThresh), 0.0f, 1.0f);
 
-                Debug.Log("c == " + c.ToString() + " ; d == " + sepDist.ToString());
+                //Debug.Log("c == " + c.ToString() + " ; d == " + sepDist.ToString());
 
-                m_forward *= Mathf.Lerp(1.0f, Mathf.SmoothStep(0.0f, 1.0f, Mathf.Min(1.0f, sepDist / 2.0f)), c);
+                m_forward *= Mathf.Lerp(1.0f, Mathf.SmoothStep(0.0f, 1.0f, Mathf.Min(1.0f, sepDist / _pathCheckDist)), c);
             }
         }
         
@@ -780,22 +784,24 @@ public class AkaiController : MonoBehaviour
 
     private IEnumerator Jumping ()
     {
+        const float _forwardJumpForce = 200.0f, _verticalJumpForce = 400.0f;
+
         AnimatorStateInfo animState = m_animator.GetCurrentAnimatorStateInfo(0);
 
-        Debug.Log("jump!");
+        //Debug.Log("jump!");
         m_jumping = true;
         m_grounded = false;
         m_jumpOnCD = true;
 
         m_rigidBody.useGravity = true;
-        //Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * 200.0f);
-        Vector3 push = transform.TransformDirection(new Vector3(m_turn, 0.0f, m_forward) * 200.0f);
+        //Vector3 push = transform.TransformDirection(new Vector3(m_move.x, 0.0f, m_move.y) * _forwardJumpForce);
+        Vector3 push = transform.TransformDirection(new Vector3(m_turn, 0.0f, m_forward) * _forwardJumpForce);
         if (!m_touchingLevel)
         {
             m_rigidBody.AddForce(push, ForceMode.Impulse);
         }
 
-        m_rigidBody.AddForce(Vector3.up * 400.0f, ForceMode.Impulse);
+        m_rigidBody.AddForce(Vector3.up * _verticalJumpForce, ForceMode.Impulse);
 
         // Wait for jump to start
         while (!animState.IsName("Jump Blend Tree"))
