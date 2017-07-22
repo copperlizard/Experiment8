@@ -1,4 +1,6 @@
-﻿Shader "Unlit/01_CustomWaterShader"
+﻿// Upgrade NOTE: replaced '_Object2World' with 'unity_ObjectToWorld'
+
+Shader "Unlit/01_CustomWaterShader"
 {
 	Properties
 	{
@@ -6,6 +8,7 @@
 		_TriangulationSteps ("TriangulationSteps", Int) = 3
 		_ScreenWidth ("ScreenWidth", float) = 1920.0
 		_MaxWaveHeight ("MaxWaveHeight", float) = 0.25
+		_NormalScanTriSideLength ("NormalScanTriSideLength", float) = 0.1
 	}
 	SubShader
 	{
@@ -46,6 +49,7 @@
 			int _TriangulationSteps;
 			float _ScreenWidth;
 			float _MaxWaveHeight;
+			float _NormalScanTriSideLength;
 
 			v2f vert (appdata v)
 			{
@@ -127,26 +131,44 @@
 
 			float FindWaveHeight (float3 pos)
 			{
-				return pNoise(pos.xz * 100.0 + _Time.xy * 0.5); //_Time.xy * 0.5
+				return pNoise(pos.xz * 100.0 + _Time.xy * 0.1); //_Time.xy * 0.5
 			}
 
-			float3 FindNormal (float3 pos)
-			{
-				pos.y = 0.0;
-				float3 p1 = pos + float3(1.0, 0.0, 0.0), p2 = pos + float3(0.0, 0.0, -1.0), p3 = pos + float3(-1.0, 0.0, 0.0), p4 = pos + float3(0.0, 0.0, 1.0);
+			float3 FindNormal (float3 pos) //local space pos... 
+			{				
+				//return pos.zzz;
 
-				p1.y += _MaxWaveHeight * FindWaveHeight(p1);
-				p2.y += _MaxWaveHeight * FindWaveHeight(p2);
-				p3.y += _MaxWaveHeight * FindWaveHeight(p3);
-				p4.y += _MaxWaveHeight * FindWaveHeight(p4);
+				
+				//Draw box around point, return avg norm of 4 quadrants 
+				
+				
+				
+				
+				
+				
+				
+				//Draw triangle around point, find triangle normal...  WTF?!?!
 
-				float3 op1 = p1 - pos, op2 = p2 - pos, op3 = p3 - pos, op4 = p4 - pos;
+				float halfH = ((_NormalScanTriSideLength * 1.73205)/2.0)/2.0;
 
-				float3 nor1 = cross(op1, op2), nor2 = cross(op2, op3), nor3 = cross(op3, op4), nor4 = cross(op4, op1);
+				//float3 m = pos - float3(0.0, halfH, 0.0);
+				//float3 p1 = pos + float3(0.0, halfH, 0.0);
+				float3 m = pos - float3(0.0, 0.0, halfH);
+				float3 p1 = pos + float3(0.0, 0.0, halfH);
+				float3 p2 = m + float3(_NormalScanTriSideLength * 0.5, 0.0, 0.0);
+				float3 p3 = m - float3(_NormalScanTriSideLength * 0.5, 0.0, 0.0);
 
-				return lerp(lerp(nor1, nor2, 0.5), lerp(nor3, nor4, 0.5), 0.5);
+				//wave height....
+				p1.y = _MaxWaveHeight * FindWaveHeight(p1); //why is it Y here but Z later?
+				p2.y = _MaxWaveHeight * FindWaveHeight(p2);
+				p3.y = _MaxWaveHeight * FindWaveHeight(p3);
 
-				//return float3(0.0, 1.0, 0.0);
+				float3 p1p2 = p2 - p1, p1p3 = p3 - p1;
+
+				//return cross(p1p2, p1p3);
+				//return cross(p1p3, p1p2);
+				return cross(normalize(p1p2), normalize(p1p3));
+				//return cross(normalize(p1p3), normalize(p1p2));
 			}
 
 			float StepPercent (float i)
@@ -169,8 +191,7 @@
 				perp = input[2].vertex.xyz; //- float3(0.0,0.0,0.0)
 				diagA = input[0].vertex.xyz;
 				diagB = input[1].vertex.xyz;
-				
-				
+								
 				v2f generated = (v2f)0;		
 
 				generated.vertex = UnityObjectToClipPos(float4(0.0, 0.0,  _MaxWaveHeight * FindWaveHeight(float3(0.0, 0.0, 0.0)), 1)); //add center
@@ -181,14 +202,14 @@
 				for(float i = 1.0; i < 15.0; i++) //add two vertices per loop
 				{	
 					float4 pos = float4(perp.x * StepPercent(i), perp.y * StepPercent(i), perp.z * StepPercent(i), 1);										
-					pos.z += _MaxWaveHeight * FindWaveHeight(pos);					
+					pos.z = _MaxWaveHeight * FindWaveHeight(pos);					
 					generated.normal = FindNormal(pos);
 					generated.uv = float2(0.5, 0.5);//Sort out UVs later
 					generated.vertex = UnityObjectToClipPos(pos);
 					OutputStream.Append(generated);
 
 					pos = float4(diagA.x * StepPercent(i), diagA.y * StepPercent(i), diagA.z * StepPercent(i), 1);
-					pos.z += _MaxWaveHeight * FindWaveHeight(pos);
+					pos.z = _MaxWaveHeight * FindWaveHeight(pos);
 					generated.normal = FindNormal(pos);
 					generated.uv = float2(0.5, 0.5);//Sort out UVs later
 					generated.vertex = UnityObjectToClipPos(pos);
@@ -202,92 +223,22 @@
 				generated.uv = float2(0.5, 0.5);//Sort out UVs later
 				OutputStream.Append(generated);
 
-				/*for(float i = 1.0; i < 15.0; i++) //add two vertices per loop (PASSING VERTICES IN THIS ORDER FLIPS THE TRIANGLE UPSIDE DOWN!!!)
-				{	
-					float4 pos = float4(perp.x * StepPercent(i), perp.y * StepPercent(i), perp.z * StepPercent(i), 1);										
-					pos.z += _MaxWaveHeight * FindWaveHeight(pos);					
-					generated.normal = FindNormal(pos);
-					generated.uv = float2(0.5, 0.5);//Sort out UVs later
-					generated.vertex = UnityObjectToClipPos(pos);
-					OutputStream.Append(generated);
-
-					pos = float4(diagB.x * StepPercent(i), diagB.y * StepPercent(i), diagB.z * StepPercent(i), 1);
-					pos.z += _MaxWaveHeight * FindWaveHeight(pos);
-					generated.normal = FindNormal(pos);
-					generated.uv = float2(0.5, 0.5);//Sort out UVs later
-					generated.vertex = UnityObjectToClipPos(pos);
-					OutputStream.Append(generated);
-				}*/
-
 				for(float i = 1.0; i < 15.0; i++) //add two vertices per loop
 				{	
 					float4 pos = float4(diagB.x * StepPercent(i), diagB.y * StepPercent(i), diagB.z * StepPercent(i), 1);
-					pos.z += _MaxWaveHeight * FindWaveHeight(pos);
+					pos.z = _MaxWaveHeight * FindWaveHeight(pos);
 					generated.normal = FindNormal(pos);
 					generated.uv = float2(0.5, 0.5);//Sort out UVs later
 					generated.vertex = UnityObjectToClipPos(pos);
 					OutputStream.Append(generated);
 
 					pos = float4(perp.x * StepPercent(i), perp.y * StepPercent(i), perp.z * StepPercent(i), 1);										
-					pos.z += _MaxWaveHeight * FindWaveHeight(pos);					
+					pos.z = _MaxWaveHeight * FindWaveHeight(pos);					
 					generated.normal = FindNormal(pos);
 					generated.uv = float2(0.5, 0.5);//Sort out UVs later
 					generated.vertex = UnityObjectToClipPos(pos);
 					OutputStream.Append(generated);
 				}
-				
-				/*
-				v2f generated = (v2f)0;		
-
-				generated.vertex = UnityObjectToClipPos(float4(0.0, 0.0, 0.0, 1)); //add center
-				generated.normal = FindNormal(generated.vertex.xyz);					
-				generated.uv = float2(0.5, 0.5);//Sort out UVs later
-				OutputStream.Append(generated);
-				
-				for(float i = 1.0; i < 15.0; i++) //add two vertices per loop
-				{	
-					float4 pos = float4(perp.x * StepPercent(i), perp.y * StepPercent(i), perp.z * StepPercent(i), 1);
-					generated.vertex = UnityObjectToClipPos(pos);	
-					generated.normal = -FindNormal(pos);
-					//generated.vertex.xyz += generated.normal * _MaxWaveHeight * FindWaveHeight(pos);
-					generated.vertex.y += _MaxWaveHeight * FindWaveHeight(pos);
-					generated.uv = float2(0.5, 0.5);//Sort out UVs later
-					OutputStream.Append(generated);
-
-					pos = float4(diagA.x * StepPercent(i), diagA.y * StepPercent(i), diagA.z * StepPercent(i), 1);
-					generated.vertex = UnityObjectToClipPos(pos);
-					generated.normal = FindNormal(pos);
-					//generated.vertex.xyz += generated.normal * _MaxWaveHeight * FindWaveHeight(pos);
-					generated.vertex.y += _MaxWaveHeight * FindWaveHeight(pos);
-					generated.uv = float2(0.5, 0.5);//Sort out UVs later
-					OutputStream.Append(generated);
-				}
-
-				OutputStream.RestartStrip();
-				
-				generated.vertex = UnityObjectToClipPos(float4(0.0, 0.0, 0.0, 1)); //add center
-				generated.normal = FindNormal(-generated.vertex.xyz);					
-				generated.uv = float2(0.5, 0.5);//Sort out UVs later
-				OutputStream.Append(generated);
-				
-				{	
-					float4 pos = float4(perp.x * StepPercent(i), perp.y * StepPercent(i), perp.z * StepPercent(i), 1);
-					generated.vertex = UnityObjectToClipPos(pos);	
-					generated.normal = -FindNormal(pos);
-					//generated.vertex.xyz += generated.normal * _MaxWaveHeight * FindWaveHeight(pos);
-					generated.vertex.y += _MaxWaveHeight * FindWaveHeight(pos);
-					generated.uv = float2(0.5, 0.5);//Sort out UVs later
-					OutputStream.Append(generated);
-
-					pos = float4(diagB.x * StepPercent(i), diagB.y * StepPercent(i), diagB.z * StepPercent(i), 1);
-					generated.vertex = UnityObjectToClipPos(pos);
-					generated.normal = FindNormal(pos);
-					//generated.vertex.xyz += generated.normal * _MaxWaveHeight * FindWaveHeight(pos);
-					generated.vertex.y += _MaxWaveHeight * FindWaveHeight(pos);
-					generated.uv = float2(0.5, 0.5);//Sort out UVs later
-					OutputStream.Append(generated);
-				}
-				*/
             }
 			
 			fixed4 frag (v2f i) : SV_Target
