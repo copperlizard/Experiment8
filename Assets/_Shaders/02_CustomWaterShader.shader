@@ -6,7 +6,8 @@
 	}
 	SubShader
 	{
-		Tags { "RenderType"="Opaque" }
+		//Tags { "RenderType"="Opaque" }
+		Tags{ "Queue" = "Transparent" "RenderType"="Transparent" }
 		Blend SrcAlpha OneMinusSrcAlpha
 		LOD 100
 
@@ -157,120 +158,56 @@
 				return o;
 			}
 
-			[maxvertexcount(64)]
+			[maxvertexcount(76)]
 			void geom(triangle v2f input[3], inout TriangleStream<v2f> OutputStream)
-            {
-				/*
-					Assumptions:
-					+Input is quad with center 0.0, 0.0, 0.0
-					+Input normal == up
-
-					Steps:
-					+Build Lines AB, AC, BC from input vertices
-					+Rename longest of three "Diag"
-					+Build "Perp" using unused vertex
-					+Use Perp to determine Tri A or B (Perp in A points more up; Perp in B points more down...)
-					+If Tri B, prentend Tri A for now (flip Perp direction)
-					+Use Perp and Diag to build bisection lines BiscA and BiscB
-
-
-
-					+If Tri B, then rotate output before appending vertices
-				*/
-				
+            {					
 				float3 AB = input[1].vertex.xyz - input[0].vertex.xyz, AC = input[2].vertex.xyz - input[0].vertex.xyz, BC = input[2].vertex.xyz - input[1].vertex.xyz;
 
-				float3 perp, diagA, biscA;
+				//DEBUG
+				float3 col;
 
-				/*diagA = input[0].vertex.xyz;
-				perp = input[2].vertex.xyz;
-
-				biscA = lerp(input[0].vertex.xyz, input[2].vertex.xyz, 0.5);*/
-
+				float3 perp, diag, bisc;
 				if(length(AB) >= length(AC) && length(AB) >= length(BC))
 				{
-					diagA = input[0].vertex.xyz;
+					col = float3(0.2, 0.05, 0.85); //purple
+
+					diag = input[0].vertex.xyz;
 					perp = input[2].vertex.xyz;
 
-					biscA = lerp(input[0].vertex.xyz, input[2].vertex.xyz, 0.5);
+					bisc = lerp(input[0].vertex.xyz, input[2].vertex.xyz, 0.5);
 				}
 				else if(length(AC) >= length(AB) && length(AC) >= length(BC))
 				{
-					diagA = input[0].vertex.xyz;
+					col = float3(0.85, 0.05, 0.2); //pink
+
+					diag = input[0].vertex.xyz;
 					perp = input[1].vertex.xyz;
 
-					biscA = lerp(input[0].vertex.xyz, input[1].vertex.xyz, 0.5);
+					bisc = lerp(input[0].vertex.xyz, input[1].vertex.xyz, 0.5);
 				}
 				else 
 				{
-					diagA = input[1].vertex.xyz;
+					col = float3(1.0, 1.0, 1.0);
+
+					diag = input[1].vertex.xyz;
 					perp = input[0].vertex.xyz;
 
-					biscA = lerp(input[1].vertex.xyz, input[0].vertex.xyz, 0.5);
+					bisc = lerp(input[1].vertex.xyz, input[0].vertex.xyz, 0.5);
 				}
 
-				diagA = normalize(diagA);
+				diag = normalize(diag);
 				perp = normalize(perp);
-				biscA = normalize(biscA);
-				
-				/* pie strip test
-
-				v2f generated = (v2f)0;
-				
-				generated.vertex = float4(0.0, 0.0, 0.0, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				generated.vertex = float4(diagA.x, diagA.y, diagA.z, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				generated.vertex = float4(biscA.x, biscA.y, biscA.z, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				generated.vertex = float4(diagA.x * 2.0, diagA.y * 2.0, diagA.z * 2.0, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				generated.vertex = float4(biscA.x * 2.0, biscA.y * 2.0, biscA.z * 2.0, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				generated.vertex = float4(diagA.x * 3.0, diagA.y * 3.0, diagA.z * 3.0, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				generated.vertex = float4(biscA.x * 3.0, biscA.y * 3.0, biscA.z * 3.0, 1.0);
-				generated.normal = perp;
-				generated.uv = float2(0.0, 0.0);
-				generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
-				OutputStream.Append(generated);
-
-				OutputStream.RestartStrip();*/
-
+				bisc = normalize(bisc);
 				
 				//Build pie strips
-				/*bool foldSpace = (dot(perp, float3(0.0, 0.0, 1.0)) > 0.0);
+				bool foldSpace = (dot(perp, float3(0.0, 0.0, 1.0)) > 0.0);
 				if (foldSpace)
 				{
-					//rotate diag, perp, biscA, biscB, 180 around y
-					diagA = rotateVertexPosition(diagA, float3(0.0, 1.0, 0.0), 180.0);
-					perp = rotateVertexPosition(perp, float3(0.0, 1.0, 0.0), 180.0);
-					biscA = rotateVertexPosition(biscA, float3(0.0, 1.0, 0.0), 180.0);
-				}*/
+					//rotate diag, perp, bisc, biscB, 180 around y
+					diag = rotateVertexPosition(diag, float3(0.0, 1.0, 0.0), 225.0);
+					perp = rotateVertexPosition(perp, float3(0.0, 1.0, 0.0), 225.0);
+					bisc = rotateVertexPosition(bisc, float3(0.0, 1.0, 0.0), 225.0);
+				}
 
 				v2f generated = (v2f)0;				
 				for(int i = 0; i < 4; i++) //i == pie strip index
@@ -279,48 +216,49 @@
 					generated.vertex = float4(0.0, 0.0, 0.0, 1.0);
 					//find wave height...
 					//find normal...
-					generated.normal = perp;
+					generated.normal = col;
 					generated.uv = float2(0.0, 0.0);
 					generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
 					OutputStream.Append(generated);
 
-					float3 sideA = rotateVertexPosition(diagA, float3(0.0, 1.0, 0.0), i * 45.0);
-					float3 sideB = rotateVertexPosition(biscA, float3(0.0, 1.0, 0.0), i * 45.0);					
-					for(int j = 1; j < 5; j++) //j == pie strip segment index
+					float3 sideA = rotateVertexPosition(diag, float3(0.0, 1.0, 0.0), i * 45.0);
+					float3 sideB = rotateVertexPosition(bisc, float3(0.0, 1.0, 0.0), i * 45.0);		
+					
+					if(foldSpace)
 					{
-						generated.vertex = float4(sideA.x * j, sideA.y * j, sideA.z * j, 1.0);
+						float3 tmp = sideB;
+						sideB = sideA;
+						sideA = tmp;
+					}
+
+					for(int j = 1; j <= 8; j++) //j == pie strip segment index
+					{
+						generated.vertex = float4(sideA.x * (1.0 * pow(2.0, j)), sideA.y * (1.0 * pow(2.0, j)), sideA.z * (1.0 * pow(2.0, j)), 1.0);
 						//find wave height...
 						//find normal...
-						generated.normal = perp;
-						generated.uv = float2(0.0, 0.0);
+						generated.normal = col;
+						generated.uv = generated.vertex.xz;
 						generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
 						OutputStream.Append(generated);
 
-						generated.vertex = float4(sideB.x * j, sideB.y * j, sideB.z * j, 1.0);
+						generated.vertex = float4(sideB.x * (1.0 * pow(2.0, j)), sideB.y * (1.0 * pow(2.0, j)), sideB.z * (1.0 * pow(2.0, j)), 1.0);
 						//find wave height...
 						//find normal...
-						generated.normal = perp;
-						generated.uv = float2(0.0, 0.0);
+						generated.normal = col;
+						generated.uv = generated.vertex.xz;
 						generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
 						OutputStream.Append(generated);
 					}
 
 					OutputStream.RestartStrip();
-					
-					/*if (foldSpace)
-					{
-						//rotate generated output 180 around y
-						float3 pos = rotateVertexPosition(generated.vertex.xyz, float3(0.0, 1.0, 0.0), 180.0);
-						generated.vertex = UnityObjectToClipPos(float4(pos.x, pos.y, pos.z, 1.0));
-					}*/					
 				}				
             }
 			
 			fixed4 frag (v2f i) : SV_Target
 			{
 				// sample the texture
-				//fixed4 col = tex2D(_MainTex, i.uv);
-				fixed4 col = fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
+				fixed4 col = tex2D(_MainTex, i.uv) * fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
+				//fixed4 col = fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
 				// apply fog
 				UNITY_APPLY_FOG(i.fogCoord, col);
 				return col;
