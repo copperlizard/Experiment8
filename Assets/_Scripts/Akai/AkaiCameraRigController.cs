@@ -77,7 +77,7 @@ public class AkaiCameraRigController : MonoBehaviour
         {
             m_autoRotate = false;
 
-            m_cameraBoom.transform.rotation *= Quaternion.Euler(0.0f, m_panSpeed * m_move.x, 0.0f); // * Quaternion.Euler(m_tiltSpeed * m_move.y, 0.0f, 0.0f)
+            m_cameraBoom.transform.rotation *= Quaternion.Euler(0.0f, m_panSpeed * m_move.x * Time.deltaTime, 0.0f); // * Quaternion.Euler(m_tiltSpeed * m_move.y, 0.0f, 0.0f)
             m_cameraBoom.transform.rotation = Quaternion.Euler(m_maxTiltAngle * m_move.y, m_cameraBoom.transform.rotation.eulerAngles.y, 0.0f);
         }
 

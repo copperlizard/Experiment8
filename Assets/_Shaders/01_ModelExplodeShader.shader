@@ -39,11 +39,11 @@ Shader "Unlit/01_ModelExplodeShader"
 
 			struct v2f
 			{
-				float2 uv : TEXCOORD0;
-				UNITY_FOG_COORDS(1)
 				float4 vertex : SV_POSITION;
-				float4 worldPosition : TEXCOORD1;
 				float3 normal : NORMAL;
+				float2 uv : TEXCOORD0;
+				float4 worldPosition : TEXCOORD1;	
+				UNITY_FOG_COORDS(1)	
 			};
 
 			sampler2D _MainTex;
@@ -70,7 +70,7 @@ Shader "Unlit/01_ModelExplodeShader"
                 for(int i = 0; i < 3; i++)
                 {
 					generated.normal = normal;
-
+					
 					//float l = sqrt(input[i].vertex.y * input[i].vertex.y + input[i].vertex.y * input[i].vertex.y);
 					float l = cos(input[i].vertex.x * 5.0 + _Time.x * 3.0) * cos(input[i].vertex.y * 5.0  + _Time.x * 5.0) * cos(input[i].vertex.z * 5.0  + _Time.x * 2.0); // * smoothstep(0.0, 1.0, input[i].vertex.y)
 					generated.vertex = UnityObjectToClipPos(input[i].vertex + float4(normal.x, normal.y, normal.z, 0.0) * (0.1 + 0.2 * l * cos(_Time.x * 5.0)));

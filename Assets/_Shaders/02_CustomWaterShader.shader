@@ -3,42 +3,60 @@
 	Properties
 	{
 		_MainTex ("Texture", 2D) = "white" {}
+		_Light ("Light Direction", Vector) = (50.0, -30.0, 0.0)
+		_MaxWaveHeight ("MaxWaveHeight", float) = 0.25
+		_NormalScanTriSideLength ("NormalScanTriSideLength", float) = 0.1
 	}
 	SubShader
 	{
-		//Tags { "RenderType"="Opaque" }
-		Tags{ "Queue" = "Transparent" "RenderType"="Transparent" }
-		Blend SrcAlpha OneMinusSrcAlpha
+		Tags { "RenderType"="Opaque" }
+		//Tags{ "Queue" = "Transparent" "RenderType"="Transparent" }
+		//Blend SrcAlpha OneMinusSrcAlpha
 		LOD 100
 
 		Pass
 		{
+			Tags { "LightMode"="ForwardBase" }
+
 			CGPROGRAM
+
+			#pragma fragmentoption ARB_precision_hint_fastest
+
 			#pragma vertex vert
 			#pragma fragment frag
 			#pragma geometry geom
+			
 			// make fog work
 			#pragma multi_compile_fog
+
+			// make shadows work
+			#pragma multi_compile_fwdbase
 			
 			#include "UnityCG.cginc"
+			#include "AutoLight.cginc"
 
 			struct appdata
 			{
 				float4 vertex : POSITION;
 				float3 normal : NORMAL;
-				float2 uv : TEXCOORD0;
+				//float2 uv : TEXCOORD0;
 			};
 
 			struct v2f
-			{
-				float2 uv : TEXCOORD0;
-				UNITY_FOG_COORDS(1)
-				float4 vertex : SV_POSITION;
-				float3 normal : TEXCOORD1;
+			{							
+				float4 pos : SV_POSITION;
+				float3 normal : NORMAL;
+				float depth : DEPTH;
+				//float2 uv : TEXCOORD0;	//too many components for geometry shader...
+				UNITY_FOG_COORDS(0)
+				LIGHTING_COORDS(1, 2)
 			};
 
 			sampler2D _MainTex;
 			float4 _MainTex_ST;
+			float3 _Light;
+			float _MaxWaveHeight;
+			float _NormalScanTriSideLength;
 
 			////Helper Functions
 
@@ -106,7 +124,7 @@
 				return t*t*t*(t*(t*6.0 - 15.0) + 10.0);
 			}
 						
-			float pNoise(float2 P) // Classic Perlin noise
+			float PerlinNoise(float2 P) // Classic Perlin noise
 			{
 				float4 Pi = floor(P.xyxy) + float4(0.0, 0.0, 1.0, 1.0);
 				float4 Pf = frac(P.xyxy) - float4(0.0, 0.0, 1.0, 1.0);
@@ -144,6 +162,103 @@
 				float n_xy = lerp(n_x.x, n_x.y, fade_xy.y);
 				return 2.3 * n_xy;
 			}
+
+			//Water
+			float3 FindWaterNormal (float3 pos)
+			{	
+				//Draw triangle around point, find triangle normal... 
+				float triSideLength = 5.0; //changes length of normal???
+				float halfH = ((triSideLength * 1.73205)/2.0)/2.0;
+				float3 m = pos - float3(0.0, 0.0, halfH);
+				float3 p1 = pos + float3(0.0, 0.0, halfH);
+				float3 p2 = m + float3(_NormalScanTriSideLength * 0.5, 0.0, 0.0);
+				float3 p3 = m - float3(_NormalScanTriSideLength * 0.5, 0.0, 0.0);
+
+				//wave height....
+				p1.y += _MaxWaveHeight * PerlinNoise(p1.xz) * 500.0; 
+				p2.y += _MaxWaveHeight * PerlinNoise(p2.xz) * 500.0;
+				p3.y += _MaxWaveHeight * PerlinNoise(p3.xz) * 500.0;
+
+				float3 p1p2 = p2 - p1, p1p3 = p3 - p1;
+
+				return normalize(cross(normalize(p1p2), normalize(p1p3)));
+			}
+
+			//Light
+			/*float GetLightIntensity (float3 normal)
+			{
+				//I == A + S * (D * dot(N,L) + pow(dot(R, V), N))
+
+				//L == direction to light (normalized)
+
+				//V == direction to camera (normalized)
+				
+				//N == normal from vertex
+
+				//R == reflection
+
+				//need ambient constant
+
+				//need diffuse constant
+				float4 diffuse = { 1.0f, 0.0f, 0.0f, 1.0f}; //temp
+				float4 ambient = {0.1, 0.0, 0.0, 1.0}; //temp
+
+				float3 norm = normalize(normal);
+
+				//float3 lightDir = normalize(float3(0.5, 0.5, 0.0));
+
+				float3 lightDir = float3(0.0, 1.0, 0.0);
+				lightDir = rotateVertexPosition(lightDir, float3(1.0, 0.0, 0.0), _Light.x);
+				lightDir = rotateVertexPosition(lightDir, float3(0.0, 1.0, 0.0), _Light.y);
+
+				float3 viewDir = normalize(_WorldSpaceCameraPos); //may need to add "mul(float3(0.0, 0.0, 0.0), unity_ObjectToWorld)" 
+
+				float4 diff = saturate(dot(norm, lightDir)); // diffuse component
+
+				// compute self-shadowing term
+				float shadow = saturate(4 * diff);
+
+				float3 reflect = normalize(2 * diff * norm - lightDir); // R
+				//float4 specular = pow(saturate(dot(reflect, viewDir)), 8); // R.V^n
+				// I = ambient + shadow * (Dcolor * N.L + (R.V)n)
+				//return ambient + shadow * (diffuse * diff + specular); 
+				return ambient + shadow * (diffuse * diff); 
+			}*/
+
+			float GetLightIntensity (float3 normal, float attenuation)
+			{
+				//I == A + S * (D * dot(N,L) + pow(dot(R, V), n))
+				//L == direction to light (normalized)
+				//V == direction to camera (normalized)				
+				//N == normal from vertex
+				//R == reflection
+				//n == shininess
+
+				//need diffuse constant
+				float4 diffuse = {1.0f, 0.0f, 0.0f, 1.0f}; //temp
+				
+				//float4 ambient = (float4)(UNITY_LIGHTMODEL_AMBIENT * 2);
+				float4 ambient = { 0.1f, 0.0f, 0.0f, 1.0f};
+
+				float3 norm = normalize(normal);
+
+				float3 lightDir = float3(cos(_Light.y)*cos(_Light.x), sin(_Light.y)*cos(_Light.x), sin(_Light.x));
+				//float3 lightDir = float3(1.0, 0.0, 0.0);
+				lightDir = mul(unity_WorldToObject, lightDir);
+
+				float3 viewDir = normalize(mul(float3(0.0, 0.0, 0.0), unity_ObjectToWorld) - _WorldSpaceCameraPos); //may need to add "mul(float3(0.0, 0.0, 0.0), unity_ObjectToWorld)" 
+
+				float4 diff = saturate(dot(norm, lightDir)) * attenuation; // diffuse component
+
+				// compute self-shadowing term
+				float shadow = saturate(4 * diff);
+
+				float3 reflect = normalize(2 * diff * norm - lightDir); // R
+				float4 specular = pow(saturate(dot(reflect, viewDir)), 8); // pow(dot(R, V), n)
+				
+				return (ambient + shadow * (diffuse * diff + specular)) * 2;				
+			}
+
 			////End Helper Functions
 			
 			////Shaders
@@ -151,17 +266,20 @@
 			{
 				v2f o;
 				//o.vertex = UnityObjectToClipPos(v.vertex);
-				o.vertex = v.vertex;
+				o.pos = v.vertex;
 				o.normal = v.normal;
-				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
-				UNITY_TRANSFER_FOG(o,o.vertex);
+				//o.depth = -mul(UNITY_MATRIX_MV, v.vertex).z *_ProjectionParams.w;
+				o.depth = UnityObjectToViewPos(v.vertex);
+				//o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+				TRANSFER_VERTEX_TO_FRAGMENT(o);
+				UNITY_TRANSFER_FOG(o,o.pos);
 				return o;
 			}
 
 			[maxvertexcount(76)]
 			void geom(triangle v2f input[3], inout TriangleStream<v2f> OutputStream)
             {					
-				float3 AB = input[1].vertex.xyz - input[0].vertex.xyz, AC = input[2].vertex.xyz - input[0].vertex.xyz, BC = input[2].vertex.xyz - input[1].vertex.xyz;
+				float3 AB = input[1].pos.xyz - input[0].pos.xyz, AC = input[2].pos.xyz - input[0].pos.xyz, BC = input[2].pos.xyz - input[1].pos.xyz;
 
 				//DEBUG
 				float3 col;
@@ -171,28 +289,28 @@
 				{
 					col = float3(0.2, 0.05, 0.85); //purple
 
-					diag = input[0].vertex.xyz;
-					perp = input[2].vertex.xyz;
+					diag = input[0].pos.xyz;
+					perp = input[2].pos.xyz;
 
-					bisc = lerp(input[0].vertex.xyz, input[2].vertex.xyz, 0.5);
+					bisc = lerp(input[0].pos.xyz, input[2].pos.xyz, 0.5);
 				}
 				else if(length(AC) >= length(AB) && length(AC) >= length(BC))
 				{
 					col = float3(0.85, 0.05, 0.2); //pink
 
-					diag = input[0].vertex.xyz;
-					perp = input[1].vertex.xyz;
+					diag = input[0].pos.xyz;
+					perp = input[1].pos.xyz;
 
-					bisc = lerp(input[0].vertex.xyz, input[1].vertex.xyz, 0.5);
+					bisc = lerp(input[0].pos.xyz, input[1].pos.xyz, 0.5);
 				}
 				else 
 				{
 					col = float3(1.0, 1.0, 1.0);
 
-					diag = input[1].vertex.xyz;
-					perp = input[0].vertex.xyz;
+					diag = input[1].pos.xyz;
+					perp = input[0].pos.xyz;
 
-					bisc = lerp(input[1].vertex.xyz, input[0].vertex.xyz, 0.5);
+					bisc = lerp(input[1].pos.xyz, input[0].pos.xyz, 0.5);
 				}
 
 				diag = normalize(diag);
@@ -213,12 +331,17 @@
 				for(int i = 0; i < 4; i++) //i == pie strip index
 				{
 					//generate center vertex
-					generated.vertex = float4(0.0, 0.0, 0.0, 1.0);
-					//find wave height...
-					//find normal...
-					generated.normal = col;
-					generated.uv = float2(0.0, 0.0);
-					generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
+					generated.pos = float4(0.0, 0.0, 0.0, 1.0);
+										
+					generated.normal = FindWaterNormal(generated.pos.xyz * 500.0 + _Time.xxx * 5.0); //find normal...
+					
+					generated.pos.y += _MaxWaveHeight * PerlinNoise(generated.pos.xz * 500.0 + _Time.xx * 5.0);	//find wave height at vertex...					
+					
+					//generated.uv = float2(0.0, 0.0);
+
+					generated.pos = UnityObjectToClipPos(generated.pos); //transform vertex to screen space
+					TRANSFER_VERTEX_TO_FRAGMENT(generated);
+					UNITY_TRANSFER_FOG(generated,generated.pos);
 					OutputStream.Append(generated);
 
 					float3 sideA = rotateVertexPosition(diag, float3(0.0, 1.0, 0.0), i * 45.0);
@@ -233,20 +356,30 @@
 
 					for(int j = 1; j <= 8; j++) //j == pie strip segment index
 					{
-						generated.vertex = float4(sideA.x * (1.0 * pow(2.0, j)), sideA.y * (1.0 * pow(2.0, j)), sideA.z * (1.0 * pow(2.0, j)), 1.0);
-						//find wave height...
-						//find normal...
-						generated.normal = col;
-						generated.uv = generated.vertex.xz;
-						generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
+						generated.pos = float4(sideA.x * (0.0019 * pow(2.0, j)), sideA.y * (0.0019 * pow(2.0, j)), sideA.z * (0.0019 * pow(2.0, j)), 1.0);
+						
+						generated.normal = FindWaterNormal(generated.pos.xyz * 500.0 + _Time.xxx * 5.0); //find normal...
+						
+						generated.pos.y += _MaxWaveHeight * PerlinNoise(generated.pos.xz * 500.0 + _Time.xx * 5.0);	//find wave height at vertex...					
+						
+						//generated.uv = generated.vertex.xz * 500.0;
+						
+						generated.pos = UnityObjectToClipPos(generated.pos); //transform vertex to screen space
+						TRANSFER_VERTEX_TO_FRAGMENT(generated);
+						UNITY_TRANSFER_FOG(generated,generated.pos);
 						OutputStream.Append(generated);
 
-						generated.vertex = float4(sideB.x * (1.0 * pow(2.0, j)), sideB.y * (1.0 * pow(2.0, j)), sideB.z * (1.0 * pow(2.0, j)), 1.0);
-						//find wave height...
-						//find normal...
-						generated.normal = col;
-						generated.uv = generated.vertex.xz;
-						generated.vertex = UnityObjectToClipPos(generated.vertex); //transform vertex to screen space
+						generated.pos = float4(sideB.x * (0.0019 * pow(2.0, j)), sideB.y * (0.0019 * pow(2.0, j)), sideB.z * (0.0019 * pow(2.0, j)), 1.0);
+						
+						generated.normal = FindWaterNormal(generated.pos.xyz * 500.0 + _Time.xxx * 5.0); //find normal...
+						
+						generated.pos.y += _MaxWaveHeight * PerlinNoise(generated.pos.xz * 500.0 + _Time.xx * 5.0); //find wave height at vertex...
+						
+						//generated.uv = generated.vertex.xz * 500.0;
+						
+						generated.pos = UnityObjectToClipPos(generated.pos); //transform vertex to screen space
+						TRANSFER_VERTEX_TO_FRAGMENT(generated);
+						UNITY_TRANSFER_FOG(generated,generated.pos);
 						OutputStream.Append(generated);
 					}
 
@@ -255,16 +388,32 @@
             }
 			
 			fixed4 frag (v2f i) : SV_Target
-			{
+			{	
+				float attenuation = LIGHT_ATTENUATION(i);
+
+				float4 worldPos = mul(unity_CameraInvProjection, i.pos);
+
+
 				// sample the texture
-				fixed4 col = tex2D(_MainTex, i.uv) * fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
-				//fixed4 col = fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
+				//fixed4 col = tex2D(_MainTex, i.uv) * fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
+				//fixed4 col = tex2D(_MainTex, worldPos.xz * 500.0);
+
+				//fixed4 col = fixed4(0.3, 0.05, 0.7, 1.0);
+				fixed4 col = fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
+				
+				
+				//col.xyz *= GetLightIntensity(i.normal, attenuation);
+				
+				
+
 				// apply fog
 				UNITY_APPLY_FOG(i.fogCoord, col);
+								
 				return col;
 			}
 			ENDCG
 			////End Shaders
 		}
 	}
+	//Fallback "Diffuse"
 }
