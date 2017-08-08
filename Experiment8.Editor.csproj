@@ -225,12 +225,15 @@
     <None Include="Assets\Resources\Standard Assets\Effects\ToonShading\Shaders\ToonBasicOutline.shader" />
     <None Include="Assets\Resources\Standard Assets\Effects\ToonShading\Shaders\ToonLit.shader" />
     <None Include="Assets\Resources\Standard Assets\Effects\ToonShading\Shaders\ToonLitOutline.shader" />
+    <None Include="Assets\_Shaders\01_BasicBumpMapTestShader.shader" />
     <None Include="Assets\_Shaders\01_BasicLightTestShader.shader" />
     <None Include="Assets\_Shaders\01_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\01_ModelExplodeShader.shader" />
     <None Include="Assets\_Shaders\01_NoBackFaceCullingSurfaceShader.shader" />
     <None Include="Assets\_Shaders\02_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\03_CustomWaterShader.shader" />
+    <None Include="Assets\_Shaders\04_CustomWaterShader.shader" />
+    <None Include="Assets\_Shaders\05_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\tmp.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

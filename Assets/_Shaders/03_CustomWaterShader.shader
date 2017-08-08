@@ -4,6 +4,7 @@
 	{
 		_Color ("Color", Color) = (1, 1, 1, 1)
 		_MainTex ("Texture", 2D) = "white" {}
+		_BumpMap ("Bump Map", 2D) = "bump" {}
 		_Light ("Light Direction", Vector) = (50.0, -30.0, 0.0)
 		_WaveAmplitude ("WaveAmplitude", float) = 0.25
 		_NormalScanTriSideLength ("NormalScanTriSideLength", float) = 0.1
@@ -54,6 +55,8 @@
 			fixed4 _Color;
 			sampler2D _MainTex;
 			float4 _MainTex_ST;
+			sampler2D _BumpMap;
+			float4 _BumpMap_ST;
 			float3 _Light;
 			float _WaveAmplitude;
 			float _NormalScanTriSideLength;
@@ -224,7 +227,7 @@
 			{
 				v2f o;
 				o.pos = v.vertex;
-				o.pos.y += _WaveAmplitude * PerlinNoise(o.pos.xz * 0.25 + _Time.xx);
+				o.pos.y += _WaveAmplitude * PerlinNoise(o.pos.xz * 0.25 + _Time.xx * 2.5);
 				o.normal = FindWaterNormal(o.pos);
 				o.vertex = UnityObjectToClipPos(o.pos);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
@@ -236,14 +239,14 @@
 			fixed4 frag (v2f i) : SV_Target
 			{
 				float attenuation = LIGHT_ATTENUATION(i);
+				float3 bumpNorm = UnpackNormal(tex2D(_BumpMap, i.uv + _Time.xx * 0.05));
+				float3 surfNorm = FindWaterNormal(i.pos);
 
 				// sample the texture
-				//fixed4 col = tex2D(_MainTex, i.uv) * GetLightIntensity(i.normal, attenuation);
-				fixed4 col = tex2D(_MainTex, i.uv) * _Color;
-				col.xyz *= GetLightIntensity(i.normal, attenuation);
-				//fixed4 col = fixed4(GetLightIntensity(i.normal, attenuation), GetLightIntensity(i.normal, attenuation), GetLightIntensity(i.normal, attenuation), 1.0);
-				//fixed4 col = tex2D(_MainTex, i.uv) * PerlinNoise(i.pos.xz * 0.25);
-				//fixed4 col = fixed4(i.normal.x, i.normal.y, i.normal.z, 1.0);
+				fixed4 col = tex2D(_MainTex, i.uv + _Time.xx * 0.05) * _Color;
+				//col.xyz *= GetLightIntensity(i.normal, attenuation);
+				col.xyz *= GetLightIntensity(lerp(bumpNorm, surfNorm, 0.75), attenuation);
+				
 				// apply fog
 				UNITY_APPLY_FOG(i.fogCoord, col);
 				return col;

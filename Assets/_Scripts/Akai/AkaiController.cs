@@ -172,21 +172,21 @@ public class AkaiController : MonoBehaviour
         
     private void OnCollisionEnter(Collision collision)
     {
-        const float _pushBackDist = 0.1f, _pushBackLerpRate = 3.0f;
+        //const float _pushBackDist = 0.1f, _pushBackLerpRate = 3.0f;
         if (collision.gameObject.layer == LayerMask.NameToLayer("Default"))
         {
-            if (m_grounded)
+            /*if (m_grounded)
             {
                 if (Vector3.Distance(transform.TransformPoint(m_characterCollider.center), collision.contacts[0].point) < m_characterCollider.radius)
                 {
                     transform.position = Vector3.Lerp(transform.position, transform.position + collision.contacts[0].normal * _pushBackDist, _pushBackLerpRate * Time.deltaTime);
                 }
-            }
-            else
+            }*/
+            /*else
             {
                 float ang = Mathf.Max(Vector3.Dot(m_rigidBody.velocity, -collision.contacts[0].normal), 0.0f);
                 m_rigidBody.velocity = new Vector3(m_rigidBody.velocity.x * (1.0f - ang), m_rigidBody.velocity.y, m_rigidBody.velocity.z * (1.0f - ang));
-            }
+            }*/
 
             /*if (!m_grounded)
             {
