@@ -4,6 +4,7 @@
 	{
 		_Color ("Color", Color) = (1, 1, 1, 1)
 		_MainTex ("Texture", 2D) = "white" {}
+		_OcclusionMap("Occlusion", 2D) = "white" {}
 		_BumpMap ("Bump Map", 2D) = "bump" {}
 		_Light ("Light Direction", Vector) = (50.0, -30.0, 0.0)
 		_WaveAmplitude ("WaveAmplitude", float) = 0.25
@@ -17,7 +18,7 @@
 
 		Pass
 		{
-			//Tags { "LightMode"="ForwardBase" }
+			Tags { "LightMode"="ForwardBase" }
 
 			CGPROGRAM
 
@@ -35,10 +36,12 @@
 			#include "UnityCG.cginc"
 			#include "AutoLight.cginc"
 
+			#include "UnityLightingCommon.cginc"
+
 			struct appdata
 			{
 				float4 vertex : POSITION;
-				float3 normal : NORMAL;
+				float4 tangent : TANGENT;
 				float2 uv : TEXCOORD0;
 			};
 
@@ -48,8 +51,14 @@
 				float2 uv : TEXCOORD0;
 				float4 pos : TEXCOORD1;
 				float3 normal : TEXCOORD2;
-				UNITY_FOG_COORDS(3)
-				LIGHTING_COORDS(4, 5)
+
+				//transforms from tangent to world space
+                half3 tspace0 : TEXCOORD3; // tangent.x, bitangent.x, normal.x
+                half3 tspace1 : TEXCOORD4; // tangent.y, bitangent.y, normal.y
+                half3 tspace2 : TEXCOORD5; // tangent.z, bitangent.z, normal.z
+
+				UNITY_FOG_COORDS(6)
+				LIGHTING_COORDS(7, 8)
 			};
 
 			fixed4 _Color;
@@ -57,6 +66,8 @@
 			float4 _MainTex_ST;
 			sampler2D _BumpMap;
 			float4 _BumpMap_ST;
+			sampler2D _OcclusionMap;
+			float4 _OcclusionMap_ST;
 			float3 _Light;
 			float _WaveAmplitude;
 			float _NormalScanTriSideLength;
@@ -207,7 +218,8 @@
 				//float3 lightDir = float3(cos(_Light.y)*cos(_Light.x), sin(_Light.y)*cos(_Light.x), sin(_Light.x));
 				//float3 lightDir = float3(sin(_Light.y)*cos(_Light.x), cos(_Light.y)*cos(_Light.x), sin(_Light.x));
 				//float3 lightDir = float3(sin(_Light.y)*cos(_Light.x), sin(_Light.x), cos(_Light.y)*cos(_Light.x));
-				float3 lightDir = _Light.xyz;
+				//float3 lightDir = _Light.xyz;
+				float3 lightDir = _WorldSpaceLightPos0.xyz;
 				lightDir = mul(unity_WorldToObject, lightDir);
 
 				float3 viewDir = normalize(mul(float3(0.0, 0.0, 0.0), unity_ObjectToWorld) - _WorldSpaceCameraPos); //may need to add "mul(float3(0.0, 0.0, 0.0), unity_ObjectToWorld)" 
@@ -234,6 +246,17 @@
 				o.vertex = UnityObjectToClipPos(o.pos);
 				o.pos = mul(unity_ObjectToWorld, o.pos);
 				o.uv = TRANSFORM_TEX(v.uv, _MainTex);
+
+				half3 wNormal = UnityObjectToWorldNormal(o.normal);
+                half3 wTangent = UnityObjectToWorldDir(v.tangent.xyz);
+                // compute bitangent from cross product of normal and tangent
+                half tangentSign = v.tangent.w * unity_WorldTransformParams.w;
+                half3 wBitangent = cross(wNormal, wTangent) * tangentSign;
+                // output the tangent space matrix
+                o.tspace0 = half3(wTangent.x, wBitangent.x, wNormal.x);
+                o.tspace1 = half3(wTangent.y, wBitangent.y, wNormal.y);
+                o.tspace2 = half3(wTangent.z, wBitangent.z, wNormal.z);
+
 				UNITY_TRANSFER_FOG(o,o.vertex);
 				TRANSFER_VERTEX_TO_FRAGMENT(o);
 				return o;
@@ -241,16 +264,39 @@
 			
 			fixed4 frag (v2f i) : SV_Target
 			{
+				// get shadows
 				float attenuation = LIGHT_ATTENUATION(i);
-				float3 bumpNorm = UnpackNormal(tex2D(_BumpMap, i.uv + _Time.xx * 0.2));
+
+				// texture normals
+				float3 bumpNorm = UnpackNormal(tex2D(_BumpMap, i.uv - _Time.xx * 0.4));
+				float3 worldBumpNorm;
+                worldBumpNorm.x = dot(i.tspace0, bumpNorm);
+                worldBumpNorm.y = dot(i.tspace1, bumpNorm);
+                worldBumpNorm.z = dot(i.tspace2, bumpNorm);
+
+				// find surface normal
 				float3 surfNorm = FindWaterNormal(i.pos);
 
-				// sample the texture
-				fixed4 col = tex2D(_MainTex, i.uv + _Time.xx * 0.2) * _Color;
-				//col.xyz *= GetLightIntensity(i.normal, attenuation);
-				col.xyz *= GetLightIntensity(lerp(bumpNorm, surfNorm, 0.5 + 0.15 * PerlinNoise(i.uv * 0.5 + _Time.xx * 10.0)), attenuation);
+				// get sky color
+				half3 worldViewDir = normalize(UnityWorldSpaceViewDir(i.pos));
+                half3 worldRefl = reflect(-worldViewDir, worldBumpNorm);
+                half4 skyData = UNITY_SAMPLE_TEXCUBE(unity_SpecCube0, worldRefl);
+                half3 skyColor = DecodeHDR (skyData, unity_SpecCube0_HDR);
 
-				//fixed4 col = fixed4(i.pos.x, i.pos.y, i.pos.z, 1.0);
+				// blend bump and surface normals (varies over time and surface to simulate wind...)
+				float3 blendNorm = lerp(bumpNorm, surfNorm, 0.5 + 0.15 * PerlinNoise(i.uv * 0.5 + _Time.xx * 10.0));
+
+				// sample and tint the texture
+				fixed4 col = tex2D(_MainTex, i.uv - _Time.xx * 0.4) * _Color;
+				
+				// shade
+				col.rgb *= GetLightIntensity(blendNorm, attenuation);
+
+				// reflect skybox
+				col.rgb += skyColor;
+
+				// occlusion shadows
+				col.rgb *= tex2D(_OcclusionMap, i.uv - _Time.xx * 0.4).r;				
 				
 				// apply fog
 				UNITY_APPLY_FOG(i.fogCoord, col);

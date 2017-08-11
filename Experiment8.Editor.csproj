@@ -234,6 +234,7 @@
     <None Include="Assets\_Shaders\03_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\04_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\05_CustomWaterShader.shader" />
+    <None Include="Assets\_Shaders\06_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\tmp.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
