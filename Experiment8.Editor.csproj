@@ -230,12 +230,14 @@
     <None Include="Assets\_Shaders\01_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\01_ModelExplodeShader.shader" />
     <None Include="Assets\_Shaders\01_NoBackFaceCullingSurfaceShader.shader" />
+    <None Include="Assets\_Shaders\01_ShieldShader.shader" />
     <None Include="Assets\_Shaders\02_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\03_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\04_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\05_CustomWaterShader.shader" />
     <None Include="Assets\_Shaders\06_CustomWaterShader.shader" />
-    <None Include="Assets\_Shaders\tmp.shader" />
+    <None Include="Assets\_Shaders\07_CustomWaterShader.shader" />
+    <None Include="Assets\_Shaders\08_CustomWaterShader.shader" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="GenerateTargetFrameworkMonikerAttribute" />

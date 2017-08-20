@@ -1,4 +1,6 @@
-﻿Shader "Unlit/06_CustomWaterShader"
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Unlit/06_CustomWaterShader"
 {
 	Properties
 	{
@@ -8,6 +10,7 @@
 		_BumpMap ("Bump Map", 2D) = "bump" {}
 		_WaveAmplitude ("WaveAmplitude", float) = 0.25
 		_NormalScanTriSideLength ("NormalScanTriSideLength", float) = 0.1
+		_ShadowIntensity ("ShadowIntensity", float) = 1.0
 	}
 	SubShader
 	{
@@ -15,6 +18,7 @@
 		Blend SrcAlpha OneMinusSrcAlpha
 		LOD 100
 
+		
 		Pass
 		{
 			Tags { "LightMode"="ForwardBase" }
@@ -34,7 +38,6 @@
 			
 			#include "UnityCG.cginc"
 			#include "AutoLight.cginc"
-
 			#include "UnityLightingCommon.cginc"
 
 			struct appdata
@@ -225,11 +228,10 @@
 
 				o.shade += ShadeSH9(half4(wNormal, 1));
 				o.ambient = ShadeSH9(half4(wNormal, 1));
-
-				TRANSFER_SHADOW(o);
-
+				
 				UNITY_TRANSFER_FOG(o, o.vertex);
-
+				//TRANSFER_VERTEX_TO_FRAGMENT(o);
+				TRANSFER_SHADOW(o);
 				return o;
 			}
 			
@@ -260,7 +262,8 @@
 				fixed4 col = tex2D(_MainTex, uv) * _Color;
 				
 				// get shadows
-				fixed shadow = SHADOW_ATTENUATION(i);
+				//fixed shadow = SHADOW_ATTENUATION(i); //  ...fuck
+				//fixed shadow = LIGHT_ATTENUATION(i);
 
 				// lighting (per vertex)
 				//col.rgb *= i.shade * shadow + i.ambient;
@@ -280,11 +283,11 @@
 			////End Shaders
 		}
 		
+
 		// shadow casting support
         //UsePass "Legacy Shaders/VertexLit/SHADOWCASTER"
-
-		/*
-		// Pass to render object as a shadow caster
+		
+		/* //Pass to render object as a shadow caster... casts shadows...
 		Pass
         {
             Tags {"LightMode"="ShadowCaster"}
@@ -313,8 +316,7 @@
             ENDCG
         }
 		*/
-		/*
-		// Pass to render object as a shadow collector
+		/*//Pass to render object as a shadow collector... no apparrent effect
 		Pass 
 		{
 			Name "ShadowCollector"
@@ -331,18 +333,90 @@
  
 			#define SHADOW_COLLECTOR_PASS
 			#include "UnityCG.cginc"
- 
-			struct appdata {
+ 			
+			struct appdata 
+			{
 				float4 vertex : POSITION;
 			};
  
 			struct v2f {
 				V2F_SHADOW_COLLECTOR;
 			};
- 
+
+			float _WaveAmplitude;
+
+			////Helper Functions
+			//Noise
+			float rand(float2 c) 
+			{
+				return frac(sin(dot(c.xy, float2(12.9898, 78.233))) * 43758.5453);
+			}	
+
+			float4 mod289(float4 x)
+			{
+				return x - floor(x * (1.0 / 289.0)) * 289.0;
+			}
+
+			float4 permute(float4 x)
+			{
+				return mod289(((x*34.0) + 1.0)*x);
+			}
+
+			float4 taylorInvSqrt(float4 r)
+			{
+				return 1.79284291400159 - 0.85373472095314 * r;
+			}
+
+			float2 fade(float2 t) {
+				return t*t*t*(t*(t*6.0 - 15.0) + 10.0);
+			}
+						
+			float PerlinNoise(float2 P) // Classic Perlin noise
+			{
+				float4 Pi = floor(P.xyxy) + float4(0.0, 0.0, 1.0, 1.0);
+				float4 Pf = frac(P.xyxy) - float4(0.0, 0.0, 1.0, 1.0);
+				Pi = mod289(Pi); // To avoid truncation effects in permutation
+				float4 ix = Pi.xzxz;
+				float4 iy = Pi.yyww;
+				float4 fx = Pf.xzxz;
+				float4 fy = Pf.yyww;
+
+				float4 i = permute(permute(ix) + iy);
+
+				float4 gx = frac(i * (1.0 / 41.0)) * 2.0 - 1.0;
+				float4 gy = abs(gx) - 0.5;
+				float4 tx = floor(gx + 0.5);
+				gx = gx - tx;
+
+				float2 g00 = float2(gx.x, gy.x);
+				float2 g10 = float2(gx.y, gy.y);
+				float2 g01 = float2(gx.z, gy.z);
+				float2 g11 = float2(gx.w, gy.w);
+
+				float4 norm = taylorInvSqrt(float4(dot(g00, g00), dot(g01, g01), dot(g10, g10), dot(g11, g11)));
+				g00 *= norm.x;
+				g01 *= norm.y;
+				g10 *= norm.z;
+				g11 *= norm.w;
+
+				float n00 = dot(g00, float2(fx.x, fy.x));
+				float n10 = dot(g10, float2(fx.y, fy.y));
+				float n01 = dot(g01, float2(fx.z, fy.z));
+				float n11 = dot(g11, float2(fx.w, fy.w));
+
+				float2 fade_xy = fade(Pf.xy);
+				float2 n_x = lerp(float2(n00, n01), float2(n10, n11), fade_xy.x);
+				float n_xy = lerp(n_x.x, n_x.y, fade_xy.y);
+				return 2.3 * n_xy;
+			}
+			////End Helper Functions
+
 			v2f vert (appdata v)
 			{
 				v2f o;
+				
+				v.vertex.y += _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, v.vertex).xz * 0.25 + _Time.xx * 2.5);
+				
 				TRANSFER_SHADOW_COLLECTOR(o)
 				return o;
 			}
@@ -354,5 +428,126 @@
 			ENDCG 
 		}
 		*/
+		/* //Cast shadows... sorta works...
+		Pass
+		{
+			Blend SrcAlpha OneMinusSrcAlpha
+			Name "ShadowPass"
+			Tags {"LightMode" = "ForwardBase"}
+
+			CGPROGRAM 
+			#pragma vertex vert
+			#pragma fragment frag
+			#pragma multi_compile_fwdbase
+			#pragma fragmentoption ARB_fog_exp2
+			#pragma fragmentoption ARB_precision_hint_fastest
+			
+			#include "UnityCG.cginc"
+			#include "AutoLight.cginc"
+
+			struct v2f 
+			{ 
+				float2 uv_MainTex : TEXCOORD1;
+				float4 pos : SV_POSITION;
+				LIGHTING_COORDS(3,4)
+				float3	lightDir : TEXCOORD0;
+			};
+ 
+			float4 _MainTex_ST;
+ 
+			sampler2D _MainTex;
+			float4 _Color;
+			float _ShadowIntensity;
+			float _WaveAmplitude;
+
+			////Helper Functions
+			//Noise
+			float rand(float2 c) 
+			{
+				return frac(sin(dot(c.xy, float2(12.9898, 78.233))) * 43758.5453);
+			}	
+
+			float4 mod289(float4 x)
+			{
+				return x - floor(x * (1.0 / 289.0)) * 289.0;
+			}
+
+			float4 permute(float4 x)
+			{
+				return mod289(((x*34.0) + 1.0)*x);
+			}
+
+			float4 taylorInvSqrt(float4 r)
+			{
+				return 1.79284291400159 - 0.85373472095314 * r;
+			}
+
+			float2 fade(float2 t) {
+				return t*t*t*(t*(t*6.0 - 15.0) + 10.0);
+			}
+						
+			float PerlinNoise(float2 P) // Classic Perlin noise
+			{
+				float4 Pi = floor(P.xyxy) + float4(0.0, 0.0, 1.0, 1.0);
+				float4 Pf = frac(P.xyxy) - float4(0.0, 0.0, 1.0, 1.0);
+				Pi = mod289(Pi); // To avoid truncation effects in permutation
+				float4 ix = Pi.xzxz;
+				float4 iy = Pi.yyww;
+				float4 fx = Pf.xzxz;
+				float4 fy = Pf.yyww;
+
+				float4 i = permute(permute(ix) + iy);
+
+				float4 gx = frac(i * (1.0 / 41.0)) * 2.0 - 1.0;
+				float4 gy = abs(gx) - 0.5;
+				float4 tx = floor(gx + 0.5);
+				gx = gx - tx;
+
+				float2 g00 = float2(gx.x, gy.x);
+				float2 g10 = float2(gx.y, gy.y);
+				float2 g01 = float2(gx.z, gy.z);
+				float2 g11 = float2(gx.w, gy.w);
+
+				float4 norm = taylorInvSqrt(float4(dot(g00, g00), dot(g01, g01), dot(g10, g10), dot(g11, g11)));
+				g00 *= norm.x;
+				g01 *= norm.y;
+				g10 *= norm.z;
+				g11 *= norm.w;
+
+				float n00 = dot(g00, float2(fx.x, fy.x));
+				float n10 = dot(g10, float2(fx.y, fy.y));
+				float n01 = dot(g01, float2(fx.z, fy.z));
+				float n11 = dot(g11, float2(fx.w, fy.w));
+
+				float2 fade_xy = fade(Pf.xy);
+				float2 n_x = lerp(float2(n00, n01), float2(n10, n11), fade_xy.x);
+				float n_xy = lerp(n_x.x, n_x.y, fade_xy.y);
+				return 2.3 * n_xy;
+			}
+			////End Helper Functions
+ 
+			v2f vert (appdata_full v)
+			{
+				v2f o;
+                o.uv_MainTex = TRANSFORM_TEX(v.texcoord, _MainTex);
+				o.pos = UnityObjectToClipPos (v.vertex + float4(0.0, _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, v.vertex).xz * 0.25 + _Time.xx * 2.5), 0.0, 0.0));
+				o.lightDir = ObjSpaceLightDir(v.vertex);
+				TRANSFER_VERTEX_TO_FRAGMENT(o);
+				return o;
+			}
+ 
+			float4 frag (v2f i) : COLOR
+			{
+				float atten = LIGHT_ATTENUATION(i);
+ 
+				half4 c;
+				//c.rgb =  0;
+				c.a = (1-atten) * _ShadowIntensity * (tex2D(_MainTex, i.uv_MainTex).a); 
+				return c;
+			}
+			ENDCG
+		}
+		*/
 	}	
+	//FallBack "Diffuse"
 }
