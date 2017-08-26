@@ -100,7 +100,8 @@ Shader "Unlit/08_CustomWaterShader"
 				return 1.79284291400159 - 0.85373472095314 * r;
 			}
 
-			float2 fade(float2 t) {
+			float2 fade(float2 t) 
+			{
 				return t*t*t*(t*(t*6.0 - 15.0) + 10.0);
 			}
 						
@@ -169,7 +170,7 @@ Shader "Unlit/08_CustomWaterShader"
 			{
 				v2f o;
 				o.pos = v.vertex;
-				o.pos.y += _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, o.pos).xz * 0.25 + _Time.xx * 5.0);
+				o.pos.y += _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, o.pos).xz * 0.25 /*+ _Time.xx * 5.0*/);
 				o.normal = FindWaterNormal(o.pos);
 				o.vertex = UnityObjectToClipPos(o.pos);
 				o.screenuv = ((o.vertex.xy / o.vertex.w) + 1) / 2;
