@@ -9,7 +9,9 @@ Shader "Unlit/08_CustomWaterShader"
 		_OcclusionMap("Occlusion", 2D) = "white" {}
 		_BumpMap ("Bump Map", 2D) = "bump" {}
 		_WaveAmplitude ("WaveAmplitude", float) = 0.25
-		_NormalScanTriSideLength ("NormalScanTriSideLength", float) = 0.1		
+		_NormalScanTriSideLength ("NormalScanTriSideLength", float) = 0.1	
+		
+		//_realTime  ("realTime", float) = 0.0
 	}
 	SubShader
 	{
@@ -77,6 +79,8 @@ Shader "Unlit/08_CustomWaterShader"
 			float4 _OcclusionMap_ST;
 			float _WaveAmplitude;
 			float _NormalScanTriSideLength;
+
+			float _realTime;
 
 			////Helper Functions
 			//Noise
@@ -154,10 +158,14 @@ Shader "Unlit/08_CustomWaterShader"
 				float3 p2 = m + float3(_NormalScanTriSideLength * 0.5, 0.0, 0.0);
 				float3 p3 = m - float3(_NormalScanTriSideLength * 0.5, 0.0, 0.0);
 
-				//wave height....
-				p1.y += _WaveAmplitude * PerlinNoise(p1.xz * 0.25 + _Time.xx); 
-				p2.y += _WaveAmplitude * PerlinNoise(p2.xz * 0.25 + _Time.xx);
-				p3.y += _WaveAmplitude * PerlinNoise(p3.xz * 0.25 + _Time.xx);
+				//wave height....   
+				//p1.y += _WaveAmplitude * PerlinNoise(p1.xz * 0.25 + _Time.xx); 
+				//p2.y += _WaveAmplitude * PerlinNoise(p2.xz * 0.25 + _Time.xx);
+				//p3.y += _WaveAmplitude * PerlinNoise(p3.xz * 0.25 + _Time.xx);
+				p1.y += _WaveAmplitude * PerlinNoise(p1.xz * 0.25 + float2(_realTime, _realTime)); 
+				p2.y += _WaveAmplitude * PerlinNoise(p2.xz * 0.25 + float2(_realTime, _realTime));
+				p3.y += _WaveAmplitude * PerlinNoise(p3.xz * 0.25 + float2(_realTime, _realTime));
+
 
 				float3 p1p2 = p2 - p1, p1p3 = p3 - p1;
 
@@ -170,7 +178,8 @@ Shader "Unlit/08_CustomWaterShader"
 			{
 				v2f o;
 				o.pos = v.vertex;
-				o.pos.y += _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, o.pos).xz * 0.25 /*+ _Time.xx * 5.0*/);
+				//o.pos.y += _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, o.pos).xz * 0.25 + _Time.xx * 5.0);
+				o.pos.y += _WaveAmplitude * PerlinNoise(mul(unity_ObjectToWorld, o.pos).xz * 0.25 + float2(_realTime, _realTime));
 				o.normal = FindWaterNormal(o.pos);
 				o.vertex = UnityObjectToClipPos(o.pos);
 				o.screenuv = ((o.vertex.xy / o.vertex.w) + 1) / 2;
@@ -210,8 +219,10 @@ Shader "Unlit/08_CustomWaterShader"
 					intersect = 1 - smoothstep(0, _ProjectionParams.w * 0.5, diff);
 				}
 
-				fixed2 uv1 = (i.uv - _Time.xx * 0.3);
-				fixed2 uv2 = (i.uv - float2(_Time.x * 0.5, _Time.x + 0.2) * 0.45);
+				//fixed2 uv1 = (i.uv - _Time.xx * 0.3);
+				//fixed2 uv2 = (i.uv - float2(_Time.x * 0.5, _Time.x + 0.2) * 0.45);
+				fixed2 uv1 = (i.uv - float2(_realTime, _realTime) * 0.3);
+				fixed2 uv2 = (i.uv - float2(_realTime * 0.5, _realTime + 0.2) * 0.45);
 
 				// texture normals
 				float3 bumpNorm1 = UnpackNormal(tex2D(_BumpMap, uv1));

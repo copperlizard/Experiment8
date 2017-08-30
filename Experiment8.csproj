@@ -131,6 +131,7 @@
     <Compile Include="Assets\_Scripts\BasicRotator.cs" />
     <Compile Include="Assets\_Scripts\CameraRenderDepth.cs" />
     <Compile Include="Assets\_Scripts\ComputeShaderExperiment.cs" />
+    <Compile Include="Assets\_Scripts\WaterHeightCalculator.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Assets\Resources\Standard Assets\Effects\GlassRefraction\Shaders\GlassStainedBumpDistort.shader" />

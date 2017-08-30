@@ -5,6 +5,17 @@
 // with cs.SetTexture
 RWTexture2D<float4> Result;
 
+/*struct ComputeBufferData
+{
+	float3 pos;
+	float time;
+};
+
+// Create a StructuredBuffer 
+StructuredBuffer<ComputeBufferData> computeBufferData;*/
+
+float _Time;
+
 ////Helper Functions
 //Noise
 float rand(float2 c) 
@@ -76,19 +87,22 @@ float PerlinNoise(float2 P) // Classic Perlin noise
 void CSMain (uint3 id : SV_DispatchThreadID)
 {
 	// TODO: insert actual code here!
+		
+	float2 uv;
+	uv.x = (id.x/256.0);
+	uv.y = (id.y/256.0);
 
+	uv.x = 1.0 - uv.x;
+	uv.y = 1.0 - uv.y;
+
+	uv.xy *= 2.0;
+	uv.xy -= 1.0;
 	
-	float2 uv = float2(2.0, 2.0);
-	uv.x -= (id.x/128.0);
-	uv.y -= (id.y/128.0);
+	float h = PerlinNoise(uv * 11.25 + float2(_Time, _Time));
 
-	float3 3Duv = float3(uv.x, 0.0, uv.y);
-	float3 wPos = mul(unity_ObjectToWorld, 3Duv);
-	
+	Result[id.xy] = float4(h, h, h, 1.0);
 
-	float h = PerlinNoise(uv * 15.0);
-
-	Result[id.xy] = float4(uv.y,0.0,uv.x,1.0) * h;
+	//Result[id.xy] = float4(fmod(uv.y * 15.0, 1.0), 0.0, fmod(uv.x * 15.0, 1.0), 1.0);
 
 	//Result[id.xy] = float4(id.x/128.0, 0.0, id.y/128.0, 0.0);
 
